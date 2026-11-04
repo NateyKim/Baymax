@@ -10,7 +10,7 @@
 |---|---|
 | **1 - Setup** | Installs prerequisites if needed, creates Desktop shortcuts and opens configuration. |
 | **2 - Monitor** | Opens live transcript/activity. Installs prerequisites on first use if necessary. |
-| **3 - Start Ember** | Installs if necessary, opens Setup if no key is saved, then checks key/model access before hardware capture. |
+| **3 - Start Ember** | Installs if necessary, opens Setup if no key is saved, then checks key/model access before hardware capture. On Linux ARM64 (the Orange Pis) it starts `run_mvp.py`: the LED eyes and the MVP defaults (400 ms turn end, interruptions off; [MVP.md](../../Baymax-main/MVP.md)). Elsewhere it starts `run_pc.py`. |
 | **4 - Stop Ember** | Requests graceful shutdown; does not delete settings, recordings or dependencies. |
 
 Keep the extracted repository in place: Desktop shortcuts point to it. Moving/deleting it breaks those shortcuts; rerun Setup from the new location to recreate them. Keep OS launchers in their folders because they share the installer/dispatcher in the parent directory.

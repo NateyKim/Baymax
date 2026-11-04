@@ -13,6 +13,35 @@ FILE = Path(__file__).resolve().parents[2] / "devops/clickables/bootstrap.py"
 spec = importlib.util.spec_from_file_location("ember_bootstrap", FILE)
 bootstrap = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bootstrap)
+LAUNCH = FILE.with_name("launch.py")
+spec = importlib.util.spec_from_file_location("ember_launch", LAUNCH)
+launch = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(launch)
+
+
+class StartEmberTests(unittest.TestCase):
+    """3 - Start Ember: the Orange Pis get run_mvp.py (eyes, 400 ms, interruptions off),
+    as their autostart service and SD image do; other computers keep run_pc.py."""
+
+    def start(self, arm_linux):
+        with patch.object(launch, "read_status", return_value={"state": "offline"}), \
+                patch("dev_settings.public_configuration", return_value={"key_configured": True}), \
+                patch("pc_hardware.arm_linux", return_value=arm_linux), \
+                patch.object(launch.subprocess, "call", return_value=0) as call, \
+                patch.object(launch.sys, "argv", ["launch.py", "start"]), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(launch.main(), 0)
+        command = call.call_args.args[0]
+        self.assertEqual(call.call_args.kwargs["cwd"], launch.RUNTIME)
+        return Path(command[-1])
+
+    def test_the_orange_pis_start_the_mvp(self):
+        script = self.start(arm_linux=True)
+        self.assertEqual(script, launch.RUNTIME / "run_mvp.py")
+        self.assertTrue(script.is_file())
+
+    def test_other_computers_start_run_pc(self):
+        self.assertEqual(self.start(arm_linux=False), launch.RUNTIME / "run_pc.py")
 
 
 class BootstrapTests(unittest.TestCase):

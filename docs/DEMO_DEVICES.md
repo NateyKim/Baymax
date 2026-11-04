@@ -12,7 +12,8 @@
 | Eye connection | external Firmata-compatible Arduino; set its real serial path | the same |
 | Updates | the image's `ember-update` (branch, default `release`) | opt-in `devops/mvp/update.py` (`BAYMAX_UPDATE_BRANCH`, default `release`) |
 
-Both start `Baymax-main/run_mvp.py` -> `run_pc.py` -> `realtime_gemini_10.py` and
+Both start `Baymax-main/run_mvp.py` -> `run_pc.py` -> `realtime_gemini_10.py` (the
+4 Pro image's service, the autostart service, and **3 - Start Ember** on Linux ARM64) and
 include the same conversation/personality, Gemini session, audio cleanup, 400 ms
 turn-end default, reply-time echo protection, local eye expressions, 60-second idle
 sleep eyes, engage/disengage, reminders/repeats/check-ins, audiobooks/wake

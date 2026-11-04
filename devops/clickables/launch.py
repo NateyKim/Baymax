@@ -12,6 +12,15 @@ sys.path.insert(0, str(RUNTIME))
 from runtime_monitor import read_status
 
 
+def runtime_script():
+    """run_mvp.py on the Orange Pis (Linux ARM64), as their autostart service and the
+    Orange Pi 4 Pro image start Ember: the LED eyes and the MVP defaults (400 ms turn-end
+    silence, interruptions, the wait cue and voice analysis off, 10 s to save memories at
+    stop; saved .env values still win). run_pc.py on other computers."""
+    from pc_hardware import arm_linux
+    return 'run_mvp.py' if arm_linux() else 'run_pc.py'
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['setup', 'monitor', 'start', 'stop'])
@@ -34,7 +43,7 @@ def main():
         print('Starting Ember. Speak when it says Connected. Ctrl+C also stops it.')
         print('Location/weather tools contact IPWho and Open-Meteo if enabled in your configuration.')
         try:
-            return subprocess.call([sys.executable, str(RUNTIME / 'run_pc.py')], cwd=RUNTIME)
+            return subprocess.call([sys.executable, str(RUNTIME / runtime_script())], cwd=RUNTIME)
         except KeyboardInterrupt:
             return 0
     if not active:

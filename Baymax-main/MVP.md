@@ -97,7 +97,7 @@ Linux camera selection retains its explicit OpenCV index; keep the same USB
 ports and verify camera enumeration across reboot. A disconnected device or
 rejected key is an error, not a reason to silently choose a different device or
 reopen setup. Explicitly change configuration with `run_mvp.py --setup`.
-Do not run a second runtime from the older Start Ember shortcut simultaneously.
+Do not start a second runtime from the Start Ember shortcut at the same time.
 
 Starting Ember sends microphone audio and enabled camera frames to Gemini and
 records session audio locally. Preflight sends only key/model metadata requests.
@@ -177,7 +177,8 @@ echo guard sends silence to Gemini through playback plus its 250 ms tail. This
 prevents leaked speaker audio from cutting off a reply or becoming a follow-up
 turn. Set the option to `1` only after live echo-cancellation testing confirms
 barge-in works on the target hardware. Saved overrides still win. AEC/residual
-subtraction remain enabled, and other launchers retain their existing default.
+subtraction remain enabled. **3 - Start Ember** runs `run_mvp.py` on the Orange Pis,
+so it has these defaults too; on other computers it keeps `run_pc.py`'s.
 
 After updating, reinstall the startup files and start the desktop session:
 
