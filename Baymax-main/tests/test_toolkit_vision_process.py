@@ -1,5 +1,6 @@
 """Camera models run in a child process: frames in, plain landmarks out, errors survive."""
 from functools import partial
+import io
 import os
 from pathlib import Path
 import sys
@@ -23,6 +24,17 @@ FAKE = textwrap.dedent('''
             if frame is None:
                 return None
             return [SimpleNamespace(x=frame, y=0.5, z=0.0, visibility=None, presence=0.9)]
+
+    class NativeChatter:
+        """Writes to file descriptor 1 as a C library does (librknnrt logs while it loads)."""
+        def __init__(self):
+            import os
+            os.write(1, b"I RKNN: init done\\n")
+
+        def detect(self, frame):
+            import os
+            os.write(1, b"W RKNN: query\\n")
+            return None
 
     class Broken:
         def __init__(self):
@@ -70,6 +82,21 @@ class VisionProcessTests(unittest.TestCase):
                 model.detect("boom")
             self.assertEqual(model.detect(0.75)[0].x, 0.75)
         self.assertIsNotNone(model.child.poll())  # Closed: the child has exited.
+
+    def test_native_writes_to_stdout_do_not_corrupt_the_reply_pipe(self):
+        with Remote(self.fake.NativeChatter) as model:
+            self.assertIsNone(model.detect("frame"))
+            self.assertIsNone(model.detect("frame"))
+
+    def test_an_unreadable_reply_is_a_runtime_error_like_a_stopped_process(self):
+        # The camera thread restarts the child on RuntimeError; anything else ended the thread.
+        import threading
+        for garbage in (b"I RKNN: init done\n", b"c no_such_module\nthing\n", b"\x80\x05K\x01."):
+            model = Remote.__new__(Remote)
+            model.lock = threading.Lock()
+            model.child = type("Child", (), {"stdin": io.BytesIO(), "stdout": io.BytesIO(garbage)})()
+            with self.subTest(garbage=garbage), self.assertRaises(RuntimeError):
+                model.detect("frame")
 
     def test_a_model_that_cannot_load_raises_and_leaves_no_process(self):
         with self.assertRaisesRegex(RuntimeError, "no mediapipe"):

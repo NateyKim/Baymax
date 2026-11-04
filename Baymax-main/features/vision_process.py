@@ -17,6 +17,7 @@ else MediaPipe on the CPU. A crash in the NPU runtime ends this child, not Ember
 Run as `python -m features.vision_process`; Remote starts it, nothing else should.
 """
 import collections
+import os
 import pickle
 import subprocess
 import sys
@@ -55,6 +56,11 @@ class Remote:
                 kind, value = pickle.load(self.child.stdout)
             except (EOFError, OSError, pickle.UnpicklingError) as error:
                 raise RuntimeError(f"vision process stopped ({error or 'exited'})") from error
+            except Exception as error:
+                # Anything else on the reply pipe (e.g. text, which unpickles as a ValueError):
+                # replies are out of step from here on, so callers close it as a stopped process.
+                raise RuntimeError(f"vision process sent an unreadable reply ({type(error).__name__}: {error})") \
+                    from error
         if kind == "error":
             raise RuntimeError(value)
         return value
@@ -81,8 +87,16 @@ class Remote:
 
 
 def main():
-    requests, replies = sys.stdin.buffer, sys.stdout.buffer
-    sys.stdout = sys.stderr  # Model or library prints must not corrupt the reply pipe.
+    requests = sys.stdin.buffer
+    # Replies get their own copy of the pipe; descriptor 1 then points at stderr, so
+    # native libraries writing to C stdout (e.g. librknnrt's "I RKNN: ..." lines) and
+    # Python prints go to Ember's log instead of corrupting the reply pipe.
+    replies = os.fdopen(os.dup(sys.stdout.fileno()), "wb")
+    try:
+        os.dup2(sys.stderr.fileno(), sys.stdout.fileno())
+    except OSError:
+        pass  # No usable stderr: native writes to fd 1 stay a risk, Python prints do not.
+    sys.stdout = sys.stderr
 
     def reply(kind, value):
         pickle.dump((kind, value), replies, protocol=pickle.HIGHEST_PROTOCOL)
