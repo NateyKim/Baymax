@@ -270,11 +270,13 @@ class FallWorker:
                 runtime_monitor.notify('fall_alert')
                 from features.conversational_ability.engage import engagement
                 engagement.engage("possible fall")  # The person must be able to answer the check-in.
+                from features.toolkits import audiobooks
+                held = audiobooks.hold_for_answer("possible fall")  # Playback withholds the mic too.
                 try:
                     await session.send_client_content(
                         turns={"role": "user", "parts": [{"text": "[Local experimental fall detector] A possible fall was detected. "
                                "Check in calmly and ask whether I am okay. This is uncertain; do not claim an emergency "
-                               "or that anyone has been contacted."}]}, turn_complete=True)
+                               "or that anyone has been contacted." + held}]}, turn_complete=True)
                 except Exception:
                     _record("Possible fall check-in could not reach Gemini. The local event remains in the monitor.")
             await asyncio.sleep(0.1)

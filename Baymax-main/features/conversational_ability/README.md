@@ -233,6 +233,36 @@ one-shot behavior, disabled mode and bad-asset fallback. The guarded hooks are
 normalized by upstream parity tests; prompt, models, sample rates, raw recording
 and disabled audio behavior remain covered.
 
+### Ember's voice volume (`volume.py`)
+
+The person can change how loud Ember speaks by asking: "Ember, speak louder",
+"softer", "set your volume to 8", "how loud are you?". Gemini calls the
+`set_voice_volume` tool (louder, quieter, default, status, or an exact level), and
+Ember's short confirmation already plays at the new level.
+
+- **Scale:** 1 to 10. Level 7 is the original loudness and leaves the audio byte for
+  byte unchanged, so nothing changes until someone asks. Each step is clearly audible:
+  level 1 is about -14 dB, level 10 about +6 dB.
+- **Above 7:** gain with a soft limiter from 70% of full scale, so loud passages are
+  rounded off instead of clipping harshly. Quiet speech gets the full gain.
+- **Never muted:** the lowest level is 1, so a fall check-in can't be silenced by
+  accident. A level change ramps across one speaker block, so there's no click.
+- **What it changes:** Ember's voice only (Gemini's replies and the waiting cue), on the
+  speaker callback, before audiobooks are mixed in and before the echo canceller's
+  reference. Echo cancellation therefore keeps matching what is played. Audiobooks,
+  radio and recordings keep their own volume (the `volume` action of the audiobook or
+  `listen` tool). The system speaker level is not touched.
+- **Saved:** `voice_volume.json` in `BAYMAX_DATA_DIR` (next to the code by default), so
+  the level survives restarts. `BAYMAX_VOICE_VOLUME` (1-10) in `.env` sets the level
+  before anyone has changed it; a saved level wins. An unreadable file or value falls
+  back to 7; if saving fails the new level still lasts until restart.
+- **Core, like the eye tool:** offered with the toolkit off too.
+  `BAYMAX_VOICE_VOLUME_TOOL=0` stops offering it; a level already saved still applies.
+- **Data flows:** none. Nothing is sent anywhere and no device is opened.
+
+Tests: `tests/test_voice_volume.py` (levels, saving, the gain and limiter, the order in
+the real speaker callback, and the tool offered and answered with the toolkit off).
+
 ### "Ember disengage" / "Ember engage" (`engage.py`)
 
 Say "Ember disengage" and Ember gives a short goodbye, shows sleep eyes and stops
@@ -255,14 +285,17 @@ there is no wake word: people talk to Ember without saying its name.
   goodbye and hello. The upstream v8 prompt is unchanged.
 - **Ember still speaks first for safety and for things the person set up:** a
   due reminder or a possible-fall check-in engages Ember again so the person can
-  answer. Eye-contact and startup greetings stay quiet.
+  answer, and pauses any audiobook, radio or recording, which withholds the mic
+  too. Eye-contact and startup greetings stay quiet.
 - **Lifetime:** the state survives Gemini reconnects but not a restart, which
   always starts engaged.
 - **Fallbacks:** without audio cleanup (`BAYMAX_AUDIO_ENHANCEMENT=0`), there is
   no mic gate, so Ember says disengage is unavailable and keeps listening. If
   the Vosk library or model is missing, Ember engages again at once and says
-  so, so it can never be left unable to hear. While the model is still loading,
-  the mic stays withheld.
+  so, so it can never be left unable to hear. That is always the case on a Mac
+  installed from `requirements-pc.txt`, which skips Vosk (no macOS wheel), so
+  disengage is not available there. While the model is still loading, the mic
+  stays withheld.
 - **Disable:** `BAYMAX_ENGAGE_WORDS=0` (no prompt section, transcript matching ignored).
 - **Data flows:** none new. While disengaged, less audio goes to Gemini.
 - **PR #20 integration:** retains its reminder occurrences/follow-ups, audiobook

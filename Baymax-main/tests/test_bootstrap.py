@@ -184,7 +184,13 @@ class ArmProfileTests(unittest.TestCase):
         required = {"pywebrtc-audio==0.2.0", "pyfirmata2==2.5.1", "miniaudio==1.71", "vosk==0.3.45"}
         for profile in ("requirements-pc.txt", "requirements-orange-pi.txt"):
             with self.subTest(profile=profile):
-                packages = set((runtime / profile).read_text().splitlines())
+                packages = set()
+                for line in (runtime / profile).read_text().splitlines():
+                    requirement, _, marker = (part.strip() for part in line.partition(";"))
+                    packages.add(requirement)
+                    if requirement in required and marker:
+                        # Only a desktop OS may be skipped (vosk has no macOS wheel); robots run Linux.
+                        self.assertRegex(marker, r'^sys_platform\s*!=\s*"(darwin|win32)"$')
                 self.assertTrue(required <= packages, required - packages)
 
         with patch.object(bootstrap.sys, "platform", "linux"), patch.object(bootstrap.platform, "machine", return_value="x86_64"):

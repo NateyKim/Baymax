@@ -30,7 +30,7 @@ require live evaluation.
 
 - `location.py`: `Location.get()` estimates city/region via HTTPS IPWho (`ipwho.is`), cached for one hour. It does not return or save the public IP. `set_city(city, country_code, region)` resolves a city explicitly supplied by the user through Open-Meteo geocoding. Multiple results require clarification; nothing changes until one place matches.
 - `weather.py`: `Weather.get(units)` returns Open-Meteo current model-based conditions and today's forecast with timestamps, units and provider attribution. Cache lasts ten minutes; new coordinates or units have separate entries. Service failures return an error, not invented or expired conditions.
-- `gemini_tools.py`: declares `get_location`, `set_location`, and `get_weather` for Gemini Live, dispatches HTTP work off the audio event loop, and preloads default location/weather in a background thread at startup.
+- `gemini_tools.py`: declares `get_location`, `set_location`, and `get_weather` for Gemini Live, dispatches HTTP work off the audio event loop, and preloads default location/weather in a background thread at startup. Weather questions go straight to `get_weather`, which finds the location itself; `get_location`'s result carries a note saying it has no weather, because Gemini sometimes stopped after it and guessed the conditions.
 
 No extra API key or package is required beyond the existing `requests` and Gemini SDK. No location data is written to disk by these tools. Confirmed cities last for the current process only. Gemini's existing transcript/recording behavior still applies.
 
@@ -83,6 +83,9 @@ fetch once with `python features/toolkits/wakeword.py --download`). "Hey Ember",
 "Ember stop/pause", or a lone "stop"/"pause" pauses the book; the book also
 pauses after every chapter. Either way Ember gets an `[AUDIOBOOK]` note naming
 the book, author and chapter so it can talk about it, and `resume` continues.
+Notes go to the current Gemini session: Google resets each connection after
+about 10 minutes, so the player re-attaches to every new session through
+`fall_detection.session_tasks`, not only to the one whose tool call started it.
 Pairs count in either order ("Ember, hey"), "hey/okay stop" too, and across a
 pause of up to 3 s (Vosk often splits "hey | Ember"). Any wake word heard on its
 own lowers the book to 30% for 4 s (`DUCK_GAIN`/`DUCK_SECONDS` in
@@ -95,6 +98,95 @@ docstring). No bookmarks yet.
 Data sent: search terms and file requests to archive.org, plus the one-time
 model download from alphacephei.com; wake words run locally.
 Tests: `tests/test_toolkit_audiobooks.py` (offline fakes).
+
+## Looking closely (`look_closely.py`)
+
+When someone asks Ember to look at, read or identify something ("what am I
+holding?", "read this letter", "is this expired?"), Gemini calls `look_closely`.
+
+- **Why:** the regular camera frames to Gemini are 320x240 at JPEG quality 50,
+  every 3 s, which is too soft for text.
+- **What it sends:** the newest frame from the existing camera loop (kept
+  through `fall_detection.frame_observers`; no camera is opened and capture size
+  is unchanged). It goes at full capture size (640x480 on the MVP; anything over
+  1280 px is scaled down) and quality 90, once, on the same
+  `send_realtime_input(video=...)` input the 3 s frames use. The tool result
+  then says the photo was sent.
+- **Hints:** a local blur check (variance of the Laplacian below 60) and a
+  brightness check (mean below 40) add `hints`, so Ember asks the person to hold
+  it closer or steadier, or to turn on a light.
+- **Errors:** no frame, a frame older than 2 s (camera stopped) or a failed send
+  return an error, and Ember says it can't see right now.
+- **Prompt:** `[LOOKING CLOSELY]` tells Ember to read only what it can see,
+  never guess words, and never give dosing advice from a medicine label (it
+  reads the label and suggests their pharmacist or doctor).
+- **Data sent:** one extra JPEG per request, to Gemini, which already receives
+  the camera feed. Nothing is stored. Session media resolution is unchanged.
+- **Disable:** `BAYMAX_LOOK_CLOSELY=0` (or `BAYMAX_TOOLKIT_ENABLED=0`).
+- **Tests:** `tests/test_toolkit_look_closely.py`: size and quality, scaling,
+  blur/dark hints, no or stale frame, send failure, photo sent before the tool
+  response, disabled, declaration and SDK validation, camera-hook registration.
+
+## Radio and recordings (`listen.py`)
+
+One `listen` tool plays live internet radio (`play_radio` with a genre, station
+name, or a `public_radio` stationuuid as `station_id`, optional `country_code`)
+and openly licensed recordings from the Internet Archive (`play_recording` with
+what to hear). `pause`, `resume`, `stop`, `next` (recordings), `status` and
+`volume` control whatever is playing, an audiobook included.
+
+- **Shared player:** both run through the audiobook `Player` (`audiobooks.py`),
+  which now plays a *program*: a book, a station or a recording. Only one plays
+  at a time, and starting one replaces the other. Like books, playback is mixed into Ember's
+  speaker stream (echo reference included), holds while Ember speaks, withholds
+  the mic from Gemini, and pauses on the offline wake words with a `[RADIO]` or
+  `[RECORDING]` note to Gemini. `BAYMAX_BOOK_VOLUME` sets the starting volume
+  for all of them; `BAYMAX_BOOK_BOOST` lifts audiobooks only (radio and music are
+  already loud), and a heard wake word briefly lowers any of them.
+- **Radio:** `find_stations` asks Radio Browser (de1 mirror, most-listened first,
+  tag search then name search) and keeps stations whose codec is MP3, Ogg or
+  FLAC, not HLS, and passing Radio Browser's last check. Before playing, the
+  stream is opened to confirm its Content-Type. miniaudio decodes it
+  incrementally on the feeder thread through a `StreamableSource` (no new
+  dependency). AAC/AAC+ and HLS stations are skipped with a clear error, since
+  miniaudio has no AAC decoder. Stream URLs are third-party data, so each URL
+  and redirect must be http(s) and resolve only to public internet addresses
+  (never the robot's home network). Up to 3 checked redirects are followed;
+  ICY metadata is not requested.
+- **Stalls and drops:** 10 s without data or a dropped connection reconnects
+  (2/4/8 s backoff). After 3 failed reconnects Ember is told the station stopped.
+  Buffering is the player's ~2 s. Paused radio is not buffered; `resume`
+  reconnects to the live stream.
+- **Recordings:** an Archive full-text search (`mediatype:audio`, LibriVox
+  excluded) is ranked by title match and popularity. Only items whose license
+  URL is public domain/CC0, CC BY or CC BY-SA are used (the Open Definition
+  licenses; any NC or ND item is skipped), and the item's own metadata is
+  checked again. MP3 tracks (at most 100) download one at a time to the
+  audiobook cache and play straight through. Status gives the title, creator,
+  license and archive.org page so Ember can attribute it. Licenses are as stated
+  by the uploader.
+- **Check-in:** after `BAYMAX_LISTEN_CHECK_MIN` minutes (default 30; 0 never)
+  of radio or recordings, playback pauses and Ember asks whether to keep
+  listening. This way nobody is stuck with a closed mic.
+- **Fall check-ins and due reminders** don't wait for that: while anything
+  plays, the mic is withheld from Gemini and only the pause words get through,
+  so a possible-fall check-in (built-in v10 or toolkit) and a due reminder first
+  pause the book, station or recording (`audiobooks.hold_for_answer`) and tell
+  Gemini what paused. Reminder follow-ups, family messages and greetings still
+  wait until playback pauses or stops.
+- **Enable/disable:** `BAYMAX_LISTEN_ENABLED=0` removes the tool and its prompt
+  section. It is on by default, and needs `BAYMAX_TOOLKIT_ENABLED`. `public_radio`
+  still never returns stream URLs to Gemini.
+- **Data sent:**
+  - to Radio Browser: the search term, country code or station ID;
+  - to the chosen station's server: a normal HTTP stream request;
+  - to archive.org: search words and file requests.
+
+  No account, mic audio or transcript is sent.
+- **Tests:** `tests/test_toolkit_listen.py` (fake network/decoder: playback,
+  wake pause and reconnecting resume, check-in, drops, unplayable codecs, open
+  licenses, public-address and redirect checks, one-at-a-time, wiring and
+  switch). Existing `tests/test_toolkit_audiobooks.py` runs unchanged.
 
 ## Starting conversations (`proactive.py`)
 
@@ -139,6 +231,49 @@ it cannot guarantee a camera is available or a model follows the prompt.
 Tests: `tests/test_toolkit_proactive.py` (fake faces, clocks, sessions, local
 AM/PM/timezone/daypart boundaries, once-per-run greeting and reconnect retry).
 Live robot voice, scene grounding and missing-camera checks remain pending.
+
+## Gentle daily check-ins (`checkins.py`)
+
+Ember checks in like a friend up to three times a day: a morning "How did you
+sleep?", an afternoon "Have you had some water today?" and an evening "How was
+your day?". There is at most one attempt per window per day. If nobody answers,
+it is not repeated.
+
+**When Ember checks in (all must be true):**
+- **Not at boot.** Ember has been connected for at least
+  `BAYMAX_CHECKIN_UPTIME_S` (1200). A check-in is never the startup hello.
+- **Inside a window**, on the device-local clock:
+  - `BAYMAX_CHECKIN_MORNING` (08:00-11:00)
+  - `BAYMAX_CHECKIN_AFTERNOON` (14:00-16:30)
+  - `BAYMAX_CHECKIN_EVENING` (18:00-20:30)
+
+  `0` turns a window off.
+- **Quiet and likely not alone.** Nobody, Ember included, has spoken for at
+  least `BAYMAX_CHECKIN_QUIET_S` (300), and the person last spoke no more than
+  `BAYMAX_CHECKIN_AROUND_S` (10800) ago. Recent conversation is the only
+  "someone is home" signal that needs no extra camera work. Only the person's
+  own transcripts count for it, not Ember's (the startup hello after an
+  unattended reboot, an unanswered reminder), so an empty room (or nobody
+  since boot) hears nothing.
+- **Not busy.** Ember isn't speaking, thinking or calling a tool, and no
+  audiobook is playing.
+- **Not disengaged.** After "Ember disengage" Gemini hears only silence, so,
+  like greetings, check-ins wait until the person says "Ember engage".
+
+**Behaviour:**
+- The note asks for one warm sentence, no medical advice, and to drop it if the
+  person doesn't want to chat.
+- "Done today" is kept in `toolkit_checkins.json` under `BAYMAX_DATA_DIR`
+  (gitignored), so a restart doesn't ask again. A failed send is retried later
+  in the window.
+
+**Other details:**
+- **Disable:** `BAYMAX_CHECKINS=0` (or `BAYMAX_TOOLKIT_ENABLED=0`).
+- **Data sent:** only the `[CHECK-IN]` text note to the existing Gemini session.
+  Answers are ordinary conversation; nothing is saved or sent elsewhere.
+- **Runs through** `fall_detection.session_tasks`; `proactive.py` is unchanged.
+- **Tests:** `tests/test_toolkit_checkins.py` (fake clocks, session and state
+  file), plus the shared check that no session task blocks the event loop.
 
 ## Optional fall detection
 

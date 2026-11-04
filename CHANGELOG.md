@@ -1,14 +1,17 @@
 # MVP (unreleased)
 
 - **Ember for Orange Pi: one repository for the Orange Pi 4 Pro and the Orange Pi 5
-  Max.** Made from JoeKojima/Baymax PR #29 (`opi4-demo`), PR #22 (`codex/opi4-flash`)
-  and the Orange Pi 5 Max branches `orangepi5-npu` + `memory-incremental-saves`. It
-  deliberately diverges from Baymax's `startup-greeting` (LattePanda) branch; shared
-  fixes are ported by hand. One dependency file, `requirements-orange-pi.txt`, for
-  both boards (memory included; rknn-toolkit-lite2 installs on the 4 Pro but is never
-  imported there). Offline only: `check_release.py` passes on macOS (core 478 with 4
-  skipped, toolkit 173) and OPI4-Flash's tests pass (37, 9 Linux-only skipped).
-  Nothing has run on either board in this combination yet.
+  Max.** Made from JoeKojima/Baymax PR #29 (`opi4-demo`), PR #22 (`codex/opi4-flash`),
+  the Orange Pi 5 Max branches `orangepi5-npu` + `memory-incremental-saves`, and
+  `orangepi-features` (opi4-demo with Svanik's PRs #23-#28 and #30 and the voice
+  volume control: the entries below, from "Let the person change how loud" to
+  "Weather"). It deliberately diverges from Baymax's `startup-greeting` (LattePanda)
+  branch; shared fixes are ported by hand. One dependency file,
+  `requirements-orange-pi.txt`, for both boards (memory included; rknn-toolkit-lite2
+  installs on the 4 Pro but is never imported there). Offline only:
+  `check_release.py` passes on macOS (core 511 with 4 skipped, toolkit 234) and
+  OPI4-Flash's tests pass (37, 9 Linux-only skipped). Nothing has run on either
+  board in this combination yet.
   - Pose stays in its own process (opi4-demo's fix for minute-late replies and mic
     overflows on the 4 Pro) and the Orange Pi 5's backend now runs inside that child
     (`features.pose.backend.ChildPose`): with `camera.pose_model` lite (default) or
@@ -45,6 +48,104 @@
     agreement on the 5 Max; `cpu_capacity` and pinning, memory download and survival
     across `ember-update`, image build size/time and an emulated `check_release` on the
     4 Pro.
+
+- Let the person change how loud Ember speaks (`features/conversational_ability/volume.py`).
+  "Ember, speak louder", "softer" or "set your volume to 8" call a new
+  `set_voice_volume` tool, and the confirmation already plays at the new level. The
+  scale is 1-10; 7 is the original loudness and leaves the audio unchanged, so nothing
+  changes until someone asks. Above 7 a soft limiter avoids harsh clipping (up to
+  about +6 dB); the lowest level is 1, never mute, so a fall check-in can't be silenced.
+  Only Ember's voice is scaled, before audiobooks are mixed in and before the echo
+  canceller's reference; audiobooks keep their own volume. The level is saved in
+  `voice_volume.json` and survives restarts; `BAYMAX_VOICE_VOLUME` sets the starting
+  level and `BAYMAX_VOICE_VOLUME_TOOL=0` stops offering the tool. Offline tests cover
+  levels, saving, gain, limiting, ramping and the speaker callback order; not yet tried
+  on a robot's speaker or with real Gemini tool calls.
+
+- Offline checks run on every pull request: `.github/workflows/offline-checks.yml`
+  (Natey's `docs/ci/desktop-offline.yml.example`, enabled and extended to
+  Linux) runs `check_release.py` on Ubuntu, Windows and macOS, adds the result
+  to the run summary and uploads the report. No secrets, devices or providers.
+  On this Orange Pi line a fourth job installs the robots'
+  `requirements-orange-pi.txt` (NumPy 1.26, OpenCV 4.10, MediaPipe 0.10.18) on
+  GitHub's Linux ARM64 runner (`ubuntu-24.04-arm`); the others use the desktop
+  pins, so code needing NumPy 2 or OpenCV 4.13 passed CI and broke on the OPI4.
+  `requirements-pc.txt` skips Vosk on macOS, which has no wheel, so the Mac
+  install no longer fails. A Mac then has no offline wake words: no pause words
+  during audiobooks, radio or recordings, and on this line "Ember disengage" is
+  refused with a spoken note. A green run is offline evidence only.
+
+- Gemini-in-the-loop evaluation without a robot: `evals/live_eval.py` builds
+  the MVP's real Live config from the runtime `run_pc.py` launches
+  (`realtime_gemini_10.py` here, with its `device.toml` prompt sections and
+  proactive audio; v8 for older checkouts) and the launchers,
+  plays scripted text-to-speech turns, picture cards and text notes into fresh
+  sessions, stubs tool results and checks transcripts, tool calls, replies and
+  first-audio latency over repeated runs. Feature scenarios (brain games, look
+  closely, radio, disengage) skip on branches without that feature; `--root`
+  tests another PR's checkout. Dry-run and confirmation before anything is sent.
+  Offline tests: `tests/test_live_eval.py`. Live run pending (needs a key).
+
+- Radio and recordings: a `listen` tool plays live internet radio stations
+  (Radio Browser; MP3, Ogg and FLAC streams decoded incrementally by miniaudio,
+  with AAC and HLS skipped) and openly licensed Internet Archive recordings
+  (public domain, CC0, CC BY, CC BY-SA only). Both go through the audiobook
+  player, which now plays one program at a time (book, station or recording):
+  mixed into Ember's speaker, held while Ember speaks, mic withheld with the
+  "Hey Ember"/"stop" wake words. Streams reconnect on drops, and resume
+  reconnects to live radio. Stream URLs must resolve to public addresses.
+  Playback pauses for a check-in after 30 min (`BAYMAX_LISTEN_CHECK_MIN`), and
+  `BAYMAX_LISTEN_ENABLED=0` disables it. Audiobook download failures now tell
+  Ember the book stopped instead of "finished". Pause, check-in and station
+  notes now follow Gemini's ~10-minute reconnects to the newest session (they
+  went to the closed one, so the 30-minute question was never asked; book
+  chapter notes had the same gap). A possible-fall check-in (built-in v10 or
+  toolkit) or a due reminder now pauses whatever plays first, since playback
+  withholds the mic: the answer used to be dropped, and reminders waited up to
+  30 min (with `BAYMAX_LISTEN_CHECK_MIN=0`, until the radio was stopped).
+  Live robot check pending.
+
+- Brain games, played only when someone asks: word association, twenty
+  questions either way, categories, remembering a list, story recall, riddles
+  and word puzzles. A local `brain_game` tool supplies fresh rounds from word
+  lists (no repeats until a list is used up) and keeps the score; nothing leaves
+  the robot. The prompt keeps it fun and encouraging and never treats it as a
+  memory test. On with Discovery (`EMBER_DISCOVERY_ENABLED=0` removes it). Live
+  check pending.
+
+- "Look closely": the new `look_closely` tool sends Gemini one sharper still
+  (full 640x480 capture, JPEG quality 90, instead of the 320x240 quality-50
+  frames every 3 s) when someone asks Ember to read or identify something. The
+  still comes from the existing camera frames on the existing video input. A
+  local blur/darkness check lets Ember ask them to hold it closer or steadier,
+  or to turn on a light. It never gives dosing advice from medicine labels.
+  `BAYMAX_LOOK_CLOSELY=0` disables it. Live robot check pending.
+
+- Gentle daily check-ins (`features/toolkits/checkins.py`): Ember asks how
+  someone slept in the morning, about water in the afternoon and about their
+  day in the evening.
+  - At most once per window per day, with no repeat if unanswered.
+  - Never within 20 minutes of starting, never as the startup hello, and only
+    when it is quiet and the person spoke to Ember in the last 3 hours. Ember's
+    own speech doesn't count: after an unattended reboot the startup hello made
+    the morning check-in ask an empty room how they slept.
+  - Not while Ember is busy, a book plays or Ember is disengaged ("Ember
+    disengage"), since the person could not answer.
+  - Spoken only; answers are not saved. "Done today" survives restarts in a
+    gitignored `toolkit_checkins.json`.
+  - `BAYMAX_CHECKINS=0` disables it; windows are configurable.
+  - Live robot check pending.
+
+- Weather: asked "what's the weather like?", Gemini often called only
+  `get_location`, then asked "would you like me to check the weather?" or
+  made the weather up (live eval: 5/10 on MVP, one invented "12 °C, clear").
+  `get_weather` already finds the location itself, so the toolkit prompt and
+  tool descriptions now say to call it directly, never to state conditions
+  that didn't come from it, and to answer with the approximate place instead
+  of asking first. `get_location`'s result carries a note that it has no
+  weather. Live eval after: 20/20 (10 with each stub), always `get_weather`
+  only, median first audio 2.3 s. Base prompt, models and audio unchanged;
+  robot check pending.
 
 - Split device demos: this branch is **OPI4 Demo** (`opi4-demo`). Both demos
   retain identical shared v10 runtime/features; only device setup and the

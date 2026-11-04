@@ -55,6 +55,39 @@ class V10RuntimeTests(unittest.TestCase):
             self.assertFalse(engagement.disengaged)
         session.send_client_content.assert_awaited_once()
 
+    def test_builtin_fall_checkin_pauses_radio_so_the_answer_reaches_gemini(self):
+        import numpy as np
+        from features.toolkits import audiobooks
+        from features.toolkits.audiobooks import Player
+        from features.toolkits.listen import Station
+        from tests.test_toolkit_audiobooks import FakeListener, wait_for
+        from tests.test_toolkit_listen import STATION, live
+        class FallEvent:
+            count = 0
+            def wait(self, timeout):
+                self.count += 1
+                if self.count > 1:
+                    raise asyncio.CancelledError()
+                return True
+            def clear(self):
+                pass
+        with patch('test_public_core_integration.CORE', V10):
+            alert = load_function('fall_alert_monitor', {'asyncio': asyncio, '_fall_detected_event': FallEvent()})
+        player = Player(listener_factory=FakeListener, notify=lambda text: None)
+        self.addCleanup(player.control, "stop", {})
+        player.play(Station(STATION, stream=live, minutes=0))   # 0: never pauses on its own.
+        self.assertTrue(wait_for(lambda: len(player.buffer) >= 2048))
+        mic = np.full(480, 7, dtype=np.int16)
+        self.assertTrue(player.gate(mic))
+        session = AsyncMock()
+        with patch.object(audiobooks, "player", player), self.assertRaises(asyncio.CancelledError):
+            asyncio.run(alert(session))
+        self.assertTrue(player.paused)
+        self.assertFalse(player.gate(mic))
+        text = session.send_client_content.await_args.kwargs["turns"]["parts"][0]["text"]
+        self.assertTrue(text.startswith("[FALL ALERT]"))
+        self.assertIn("Jazz FM (live radio) is paused so they can hear you and answer", text)
+
     def test_queued_replies_have_a_gap_but_chunks_and_idle_replies_do_not(self):
         namespace = {"_playback_buffer": b"", "_playback_lock": threading.Lock(),
                      "RECEIVE_SAMPLE_RATE": 48000, "OUTPUT_CHANNELS": 1}
@@ -74,7 +107,8 @@ class V10RuntimeTests(unittest.TestCase):
     def test_speaker_mixes_extra_sources_such_as_audiobooks(self):
         enhancer = SimpleNamespace(full_duplex=True, rendered=Mock(), mix_output=lambda chunk: b"\x07\x00" * (len(chunk) // 2))
         namespace = {"_playback_buffer": b"", "_playback_lock": threading.Lock(), "_waiting_cue": None,
-                     "_audio_enhancer": enhancer, "np": __import__("numpy"), "OUTPUT_CHANNELS": 1}
+                     "_audio_enhancer": enhancer, "np": __import__("numpy"), "OUTPUT_CHANNELS": 1,
+                     "voice_volume": SimpleNamespace(apply=lambda chunk: chunk)}
         with patch("test_public_core_integration.CORE", V10):
             callback = load_function("_output_callback", namespace)
         out = __import__("numpy").empty((4, 1), dtype="int16")
