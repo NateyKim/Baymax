@@ -1,5 +1,14 @@
 # MVP (unreleased)
 
+- Gemini-in-the-loop evaluation without a robot: `evals/live_eval.py` builds
+  the MVP's real Live config from `realtime_gemini_8.py` and the launchers,
+  plays scripted text-to-speech turns, picture cards and text notes into fresh
+  sessions, stubs tool results and checks transcripts, tool calls, replies and
+  first-audio latency over repeated runs. Feature scenarios (brain games, look
+  closely, radio, disengage) skip on branches without that feature; `--root`
+  tests another PR's checkout. Dry-run and confirmation before anything is sent.
+  Offline tests: `tests/test_live_eval.py`. Live run pending (needs a key).
+
 - Radio and recordings: a `listen` tool plays live internet radio stations
   (Radio Browser; MP3, Ogg and FLAC streams decoded incrementally by miniaudio,
   with AAC and HLS skipped) and openly licensed Internet Archive recordings
