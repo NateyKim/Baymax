@@ -106,7 +106,7 @@ def main(argv=None):
             # cover Setup, heavy imports and model loading until Gemini connects.
             load_dotenv(ROOT / ".env", override=True, interpolate=False)
             # Before the eyes/network threads and numpy's OpenBLAS pool start, so they run
-            # on the fast cores too (ARM big.LITTLE Linux only; run_pc's call is then a no-op).
+            # on the fast cores too (by default the RK3588 only; run_pc's call is then a no-op).
             use_performance_cpus()
             with eyes_session() as eyes:
                 if args.setup or not configuration_ready(ROOT / ".env"):

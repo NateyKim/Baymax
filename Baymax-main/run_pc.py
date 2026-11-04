@@ -17,7 +17,7 @@ def main():
     os.chdir(ROOT)
     load_dotenv(ROOT / ".env", override=True, interpolate=False)
     # First (after .env, for BAYMAX_CPU_PINNING), so every thread starts on the fast
-    # cores. Only ARM big.LITTLE Linux boards (Orange Pi 5); elsewhere it does nothing.
+    # cores. By default only on the Orange Pi 5 (RK3588); elsewhere it does nothing.
     use_performance_cpus()
     os.environ["BAYMAX_HARDWARE_PROFILE"] = "pc"
     os.environ.setdefault("BAYMAX_AUDIO_ENHANCEMENT", "1")

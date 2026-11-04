@@ -7,18 +7,19 @@ import sys
 
 
 def arm_linux():
-    """Linux on 64-bit ARM (the Orange Pi 5's RK3588). Fast-core pinning was measured
-    only there, so it applies only there; the 1-frame camera buffer is limited to it too,
-    but is not measured yet (no camera run on the board)."""
+    """Linux on 64-bit ARM (the Orange Pi 5's RK3588, the Orange Pi 4 Pro's A733). The
+    1-frame camera buffer is limited to it (not measured yet on either board). Fast-core
+    pinning needs it too, and by default also an RK3588 (use_performance_cpus)."""
     return sys.platform.startswith("linux") and platform.machine().lower() in ("aarch64", "arm64")
 
 
 def performance_cpus(sysfs="/sys/devices/system/cpu"):
     """The fast cores of an ARM big.LITTLE CPU this process may use (on the Orange Pi 5's
-    RK3588: the four Cortex-A76s, cpu4-7), or None when the cores are all alike, fewer
-    than two fast cores are allowed, or it can't tell. Linux on 64-bit ARM only (x86
-    hybrid CPUs, e.g. Intel P/E cores, are left to the kernel's scheduler); reads each
-    core's relative speed from sysfs."""
+    RK3588: the four Cortex-A76s, cpu4-7; on the Orange Pi 4 Pro's A733: its two A76s),
+    or None when the cores are all alike, fewer than two fast cores are allowed, or it
+    can't tell. Linux on 64-bit ARM only (x86 hybrid CPUs, e.g. Intel P/E cores, are left
+    to the kernel's scheduler); reads each core's relative speed from sysfs. Whether Ember
+    is pinned to them is use_performance_cpus's decision."""
     if not arm_linux() or not hasattr(os, "sched_getaffinity"):
         return None
     speed = {}
@@ -91,13 +92,21 @@ def pin_threads(cpus, tasks="/proc/self/task"):
 
 
 def use_performance_cpus():
-    """Keep Ember on the fast cores of an ARM big.LITTLE board (Orange Pi 5): MediaPipe
-    runs pose on one thread, about 5x slower on an A55 than an A76 (measured on the
-    RK3588). Moves every thread that already exists and the caller; threads started later
-    inherit it. run_mvp.py and run_pc.py call it first thing; a second call changes
-    nothing and prints nothing. BAYMAX_CPU_PINNING=off turns it off."""
-    if os.getenv("BAYMAX_CPU_PINNING", "auto").strip().lower() in ("off", "0", "false", "no"):
+    """Keep Ember on the fast cores of an ARM big.LITTLE board: MediaPipe runs pose on one
+    thread, about 5x slower on an A55 than an A76 (measured on the RK3588). Moves every
+    thread that already exists and the caller; threads started later, and child processes
+    (the pose and face vision processes), inherit it. run_mvp.py and run_pc.py call it
+    first thing; a second call changes nothing and prints nothing.
+
+    BAYMAX_CPU_PINNING: auto (default) pins only on an RK3588 (Orange Pi 5 / 5 Max, where
+    it was measured: 4 fast cores); on pins on any ARM big.LITTLE board, e.g. to try the
+    Orange Pi 4 Pro, whose A733 has only 2 fast cores for Ember and both vision
+    processes (unmeasured); off never pins."""
+    mode = os.getenv("BAYMAX_CPU_PINNING", "auto").strip().lower()
+    if mode in ("off", "0", "false", "no"):
         return None
+    if mode not in ("on", "1", "true", "yes") and not is_rk3588():
+        return None  # auto: the RK3588 only
     cpus = performance_cpus()
     if not cpus:
         return None

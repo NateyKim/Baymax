@@ -212,6 +212,7 @@ class BigLittleCpuTests(unittest.TestCase):
         for system, machine in (("darwin", "arm64"), ("darwin", "x86_64"), ("win32", "ARM64"), ("win32", "AMD64")):
             self.assertIsNone(self.fast(self.RK3588, system=system, machine=machine), system)
 
+    @patch.object(pc_hardware, "is_rk3588", Mock(return_value=True))
     def test_pinning_moves_every_thread_once_and_can_be_turned_off(self):
         setter = Mock()
         current = Mock(return_value={0, 1, 2, 3, 4, 5, 6, 7})
@@ -240,6 +241,26 @@ class BigLittleCpuTests(unittest.TestCase):
             self.assertIsNone(pc_hardware.use_performance_cpus())
         setter.assert_not_called()
 
+    def test_auto_pins_only_on_the_rk3588(self):
+        # Measured on the Orange Pi 5 Max only; the Orange Pi 4 Pro's A733 (2 fast cores
+        # for Ember and both vision processes) stays unpinned unless =on.
+        setter = Mock()
+        with patch.object(pc_hardware, "is_rk3588", return_value=False), \
+             patch.object(pc_hardware, "performance_cpus", return_value={6, 7}), \
+             patch.object(pc_hardware, "thread_ids", return_value=[100]), \
+             patch.object(pc_hardware.os, "sched_setaffinity", setter, create=True), \
+             patch.object(pc_hardware.os, "sched_getaffinity", Mock(return_value=set(range(8))), create=True), \
+             patch("builtins.print") as printed:
+            with patch.dict(os.environ, {"BAYMAX_CPU_PINNING": "auto"}):
+                self.assertIsNone(pc_hardware.use_performance_cpus())
+            setter.assert_not_called()
+            printed.assert_not_called()
+            with patch.dict(os.environ, {"BAYMAX_CPU_PINNING": "on"}):
+                self.assertEqual(pc_hardware.use_performance_cpus(), {6, 7})
+            self.assertEqual([c.args for c in setter.call_args_list], [(0, {6, 7}), (100, {6, 7})])
+            self.assertIn("[CPU] Running on the fast cores 6,7", printed.call_args.args[0])
+
+    @patch.object(pc_hardware, "is_rk3588", Mock(return_value=True))
     def test_a_refused_pin_leaves_ember_on_all_cores(self):
         with patch.object(pc_hardware, "performance_cpus", return_value={4, 5, 6, 7}), \
              patch.object(pc_hardware.os, "sched_getaffinity", Mock(return_value=set(range(8))), create=True), \
