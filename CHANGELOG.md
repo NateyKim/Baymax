@@ -17,6 +17,10 @@
   (Natey's `docs/ci/desktop-offline.yml.example`, enabled and extended to
   Linux) runs `check_release.py` on Ubuntu, Windows and macOS, adds the result
   to the run summary and uploads the report. No secrets, devices or providers.
+  On this Orange Pi line a fourth job installs the robots'
+  `requirements-orange-pi.txt` (NumPy 1.26, OpenCV 4.10, MediaPipe 0.10.18) on
+  GitHub's Linux ARM64 runner (`ubuntu-24.04-arm`); the others use the desktop
+  pins, so code needing NumPy 2 or OpenCV 4.13 passed CI and broke on the OPI4.
   `requirements-pc.txt` skips Vosk on macOS, which has no wheel, so the Mac
   install no longer fails. A green run is offline evidence only.
 

@@ -1,5 +1,8 @@
 # Runs the offline review gate (Baymax-main/check_release.py) on every pull
-# request, on Linux (the robot's OS), Windows and macOS. Based on Natey's
+# request: with the robots' own pins (requirements-orange-pi.txt: NumPy 1.26,
+# OpenCV 4.10, MediaPipe 0.10.18) on Linux ARM64, the Orange Pi's OS and CPU,
+# and with the desktop pins (requirements-pc.txt: NumPy 2, OpenCV 4.13) on
+# Linux, Windows and macOS. Based on Natey's
 # docs/ci/desktop-offline.yml.example (now removed). It never opens a microphone, camera or
 # speaker and never contacts Gemini or another provider: no secrets are used.
 # A green run is offline evidence only; live checks and James's approval are
@@ -26,9 +29,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          # The robots. Code that needs NumPy 2 or OpenCV 4.13 passes the desktop
+          # jobs and then breaks on the OPI4; this job catches it.
+          - name: Orange Pi (Linux ARM64)
+            os: ubuntu-24.04-arm
+            requirements: requirements-orange-pi.txt
+            timeout: 60   # Some ARM64 packages (e.g. Praat-Parselmouth) may build from source.
+          - name: Linux desktop
+            os: ubuntu-latest
+            requirements: requirements-pc.txt
+          - name: Windows
+            os: windows-latest
+            requirements: requirements-pc.txt
+          - name: macOS
+            os: macos-latest
+            requirements: requirements-pc.txt
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: ${{ matrix.timeout || 25 }}
     defaults:
       run:
         working-directory: Baymax-main
@@ -39,15 +58,15 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: Baymax-main/requirements-pc.txt
+          cache-dependency-path: Baymax-main/${{ matrix.requirements }}
 
       - name: Linux libraries (same as the robot image)
         if: runner.os == 'Linux'
         working-directory: .
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libportaudio2 libgl1 libegl1 libgles2 libsndfile1
 
-      - name: Install desktop dependencies (no credentials or capture)
-        run: python -m pip install -r requirements-pc.txt
+      - name: Install ${{ matrix.requirements }} (no credentials or capture)
+        run: python -m pip install -r ${{ matrix.requirements }}
 
       - name: Run core and toolkit offline gate
         run: python check_release.py --report .local-review/report.md
@@ -61,12 +80,12 @@ jobs:
         shell: bash
         run: |
           if [ -f .local-review/report.md ]; then
-            { echo "## ${{ runner.os }}"; sed -n '1,/^## Core: live checks/p' .local-review/report.md | sed '$d'; } >> "$GITHUB_STEP_SUMMARY"
+            { echo "## ${{ matrix.name }}"; sed -n '1,/^## Core: live checks/p' .local-review/report.md | sed '$d'; } >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: offline-report-${{ runner.os }}
+          name: offline-report-${{ matrix.os }}
           path: Baymax-main/.local-review/report.md
           if-no-files-found: ignore
