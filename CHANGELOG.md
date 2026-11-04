@@ -2,11 +2,13 @@
 
 - **Ember for Orange Pi: one repository for the Orange Pi 4 Pro and the Orange Pi 5
   Max.** Made from JoeKojima/Baymax PR #29 (`opi4-demo`), PR #22 (`codex/opi4-flash`),
-  the Orange Pi 5 Max branches `orangepi5-npu` + `memory-incremental-saves`, and
+  the Orange Pi 5 Max branches `orangepi5-npu` + `memory-incremental-saves`,
   `orangepi-features` (opi4-demo with Svanik's PRs #23-#28 and #30 and the voice
-  volume control: the entries below, from "Let the person change how loud" to
-  "Weather"). It deliberately diverges from Baymax's `startup-greeting` (LattePanda)
-  branch; shared fixes are ported by hand. One dependency file,
+  volume control: the entries below from "Let the person change how loud" to
+  "Weather") and one commit of `reconnect-any-disconnect` (6afe802: the entries
+  from "Reconnect after any disconnect" to its "Tested offline only"; not its
+  LattePanda parent b5d41de). It deliberately diverges from Baymax's
+  `startup-greeting` (LattePanda) branch; shared fixes are ported by hand. One dependency file,
   `requirements-orange-pi.txt`, for both boards (memory included; rknn-toolkit-lite2
   installs on the 4 Pro but is never imported there). Offline only:
   `check_release.py` passes on macOS (core 511 with 4 skipped, toolkit 234) and
@@ -48,6 +50,45 @@
     agreement on the 5 Max; `cpu_capacity` and pinning, memory download and survival
     across `ember-update`, image build size/time and an emulated `check_release` on the
     4 Pro.
+
+- Reconnect after any disconnect. The send and receive loops only reconnected when
+  the error text contained 1000, 1006, 1011, CANCELLED or closed. Gemini closing
+  with any other code (for example 1001, 1007, 1008 or 1013) left Ember retrying a
+  dead connection, deaf and silent, until the service restarted. A failed mic send
+  now ends the session at once; the receive loop ends it on any closed connection,
+  decided by exception type (`connection_lost`), or after 3 errors in a row with no
+  message between them. A one-off error handling a single message still keeps the
+  session. The partial transcript is still posted when the send side notices first.
+- Recover from a network that goes silent, with no close and no reset (a Wi-Fi
+  drop). A mic send then waited, with the websocket's keepalive stuck behind it,
+  until the kernel gave up, so Ember stayed deaf about 15 minutes (the Linux default;
+  not measured). A send stuck for 5 s now counts as failed
+  (`MIC_SEND_TIMEOUT_S`), and the socket is aborted when a session ends. In a
+  simulated freeze Ember was reconnected about 15 s later, plus the 5 s audio reset
+  a robot adds.
+- Clear leftover reply audio on reconnect (`_abandon_reply`). Queued audio survived
+  the reconnect and played about 7 s later with the mic muted, so Ember finished an
+  old sentence out of nowhere and couldn't hear anyone meanwhile. A reply in progress
+  when the connection goes (Gemini resets it about every 10 minutes) now stops there;
+  the conversation still resumes. Ember's own messages (a fall check-in, a family
+  message, a reminder) that reached Gemini are sent again on the next connection if
+  their reply was still playing, or hadn't come yet within 30 s of the message
+  (`AddressGate.abandon`), unless the person has spoken since. One already heard isn't
+  repeated. A message that never reached Gemini is left to its sender's own retry, so
+  nothing is sent twice; the startup greeting now counts as done once it's sent, and
+  both fall alerts (`fall_alert_monitor`, the fall toolkit) now retry a failed send
+  themselves. Limit: a message with no reply that is noticed lost after more than 30 s
+  isn't resent (for example a silent Wi-Fi drop during an audiobook, when the mic sends
+  only silence and the keepalive notices it up to about 45 s later). An audiobook isn't
+  cleared: it goes quiet during the reconnect (at least 7 s) and resumes where it
+  stopped.
+- A stop after a reconnect now reaches the shutdown summary. On Python 3.11/3.12 a
+  failed TaskGroup leaves `run()`'s cancel count up, so a later Ctrl+C or Stop ended
+  `asyncio.run` with CancelledError instead of KeyboardInterrupt. That skipped the
+  summary, so the session's memories were lost, and exited with an error.
+- Tested offline only: the real send and receive loops on the real SDK session over
+  a local websocket, closed with each close code or left unread, and the real `run()`
+  with a cut-off fall check-in. Not yet tested against a real Gemini close or on a robot.
 
 - Let the person change how loud Ember speaks (`features/conversational_ability/volume.py`).
   "Ember, speak louder", "softer" or "set your volume to 8" call a new
