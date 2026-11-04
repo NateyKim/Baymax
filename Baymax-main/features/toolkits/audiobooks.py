@@ -86,8 +86,15 @@ _gemini = {"session": None, "loop": None}
 
 
 def attach(session, loop):
-    """Remember the live session that started the book, for pause notes."""
+    """Remember the live session for pause, chapter, station and check-in notes."""
     _gemini["session"], _gemini["loop"] = session, loop
+
+
+async def session_task(session, shutdown_event):
+    """Run for every live session: Google resets each connection after about 10
+    minutes, and a note sent to the old one is lost (radio's 30-minute check-in
+    always comes after a reset), so notes follow the newest session."""
+    attach(session, asyncio.get_running_loop())
 
 
 def tell_gemini(text):
@@ -402,16 +409,21 @@ def execute(args):
     return player.execute(args)
 
 
-def register(sources=None, gates=None):
-    """Feed playback into Ember's speaker stream and gate the mic while it plays."""
+def register(sources=None, gates=None, tasks=None):
+    """Feed playback into Ember's speaker stream, gate the mic while it plays and
+    follow each live session for notes."""
     if sources is None or gates is None:
         from features.conversational_ability import processing
         sources = processing.output_sources if sources is None else sources
         gates = processing.input_gates if gates is None else gates
+    if tasks is None:
+        from .fall_detection import session_tasks as tasks
     if player.render not in sources:
         sources.append(player.render)
     if player.gate not in gates:
         gates.append(player.gate)
+    if session_task not in tasks:
+        tasks.append(session_task)
 
 
 register()

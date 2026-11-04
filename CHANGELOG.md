@@ -41,7 +41,10 @@
   reconnects to live radio. Stream URLs must resolve to public addresses.
   Playback pauses for a check-in after 30 min (`BAYMAX_LISTEN_CHECK_MIN`), and
   `BAYMAX_LISTEN_ENABLED=0` disables it. Audiobook download failures now tell
-  Ember the book stopped instead of "finished". Live robot check pending.
+  Ember the book stopped instead of "finished". Pause, check-in and station
+  notes now follow Gemini's ~10-minute reconnects to the newest session (they
+  went to the closed one, so the 30-minute question was never asked; book
+  chapter notes had the same gap). Live robot check pending.
 
 - Brain games, played only when someone asks: word association, twenty
   questions either way, categories, remembering a list, story recall, riddles

@@ -83,6 +83,9 @@ fetch once with `python features/toolkits/wakeword.py --download`). "Hey Ember",
 "Ember stop/pause", or a lone "stop"/"pause" pauses the book; the book also
 pauses after every chapter. Either way Ember gets an `[AUDIOBOOK]` note naming
 the book, author and chapter so it can talk about it, and `resume` continues.
+Notes go to the current Gemini session: Google resets each connection after
+about 10 minutes, so the player re-attaches to every new session through
+`fall_detection.session_tasks`, not only to the one whose tool call started it.
 Pairs count in either order ("Ember, hey"), "hey/okay stop" too, and across a
 pause of up to 3 s (Vosk often splits "hey | Ember"). Any wake word heard on its
 own lowers the book to 30% for 4 s (`DUCK_GAIN`/`DUCK_SECONDS` in

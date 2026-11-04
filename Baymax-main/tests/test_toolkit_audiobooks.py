@@ -198,6 +198,42 @@ class AudiobookTests(unittest.TestCase):
                                  "turn_complete": True}])
         audiobooks.tell_gemini("no session")  # Without a session it only logs.
 
+    def test_notes_follow_the_newest_session_after_a_reconnect(self):
+        # Google resets each Live connection after about 10 minutes; radio's
+        # 30-minute check-in must reach the session that replaced the tool call's.
+        import asyncio
+        import threading
+        from types import SimpleNamespace
+        from features.toolkits import fall_detection
+        self.assertIn(audiobooks.session_task, fall_detection.session_tasks)
+        sent = {"first": [], "second": []}
+        class Session:
+            def __init__(self, name):
+                self.name, self.closed = name, False
+            async def send_client_content(self, turns, turn_complete):
+                if self.closed:
+                    raise RuntimeError(self.name + " connection closed")
+                sent[self.name].append(turns["parts"][0]["text"])
+            async def send_tool_response(self, function_responses):
+                pass
+        first, second = Session("first"), Session("second")
+        call = SimpleNamespace(id="1", name="listen", args={"action": "status"})
+        note = "[RADIO] Jazz FM has played for 30 minutes, so it is paused."
+        async def run():
+            await gemini_tools.handle_tool_call(first, SimpleNamespace(function_calls=[call]))
+            first.closed = True   # Gemini reset the connection; the runtime reconnects...
+            for task in list(fall_detection.session_tasks):
+                if task is audiobooks.session_task:   # ...and runs every session task for it.
+                    await task(second, threading.Event())
+            await asyncio.to_thread(audiobooks.tell_gemini, note)
+            await asyncio.sleep(0.05)
+        with patch.dict("os.environ", {"BAYMAX_TOOLKIT_ENABLED": "1", "BAYMAX_LISTEN_ENABLED": "1"}):
+            try:
+                asyncio.run(run())
+            finally:
+                audiobooks.attach(None, None)
+        self.assertEqual(sent, {"first": [], "second": [note]})
+
     def test_invalid_requests(self):
         self.assertIn("error", self.player.execute({"action": "dance"}))
         self.assertIn("error", self.player.execute(None))
