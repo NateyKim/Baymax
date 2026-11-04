@@ -6,7 +6,8 @@
   - At most once per window per day, with no repeat if unanswered.
   - Never within 20 minutes of starting, never as the startup hello, and only
     when it is quiet and someone talked to Ember in the last 3 hours.
-  - Not while Ember is busy or a book plays.
+  - Not while Ember is busy, a book plays or Ember is disengaged ("Ember
+    disengage"), since the person could not answer.
   - Spoken only; answers are not saved. "Done today" survives restarts in a
     gitignored `toolkit_checkins.json`.
   - `BAYMAX_CHECKINS=0` disables it; windows are configurable.

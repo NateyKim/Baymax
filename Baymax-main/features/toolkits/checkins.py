@@ -3,7 +3,8 @@
 At most once per window per day (morning, afternoon, evening on the device-local
 clock), only after Ember has been running a while (never at boot or as the
 startup hello), only when it is quiet, and only when someone talked to Ember in
-the last few hours, so it does not speak to an empty room. One attempt per
+the last few hours, so it does not speak to an empty room. Like greetings, it
+stays quiet while Ember is disengaged ("Ember disengage"). One attempt per
 window: an unanswered check-in is not repeated. Answers are ordinary
 conversation; nothing is saved or sent anywhere. The live session comes through
 `fall_detection.session_tasks`; "done today" is kept in a small local file.
@@ -78,12 +79,22 @@ def _book_playing():
         return False
 
 
+def _disengaged():
+    # After "Ember disengage" Gemini hears only silence, so a check-in question could not be answered.
+    try:
+        from features.conversational_ability.engage import engagement
+        return engagement.disengaged
+    except Exception:
+        return False
+
+
 class CheckIns:
     def __init__(self, path=None, now=datetime.now, clock=time.monotonic, wall=time.time,
-                 last_conversation=_last_conversation, book_playing=_book_playing):
+                 last_conversation=_last_conversation, book_playing=_book_playing, disengaged=_disengaged):
         self.path = Path(path) if path else None
         self.now, self.clock, self.wall = now, clock, wall
         self.last_conversation, self.book_playing = last_conversation, book_playing
+        self.disengaged = disengaged
         self.started = None   # First live session; reconnects keep it, a restart resets it.
         self.sleep = asyncio.sleep
 
@@ -121,7 +132,7 @@ class CheckIns:
         quiet = self.wall() - self.last_conversation()
         if quiet < _setting("BAYMAX_CHECKIN_QUIET_S", 5 * 60) or quiet > _setting("BAYMAX_CHECKIN_AROUND_S", 3 * 3600):
             return None
-        if self.book_playing() or monitor.state in ("speaking", "thinking", "calling_tool"):
+        if self.book_playing() or self.disengaged() or monitor.state in ("speaking", "thinking", "calling_tool"):
             return None
         return name, NOTE.format(name=f"the {name}", ask=NOTES[name])
 

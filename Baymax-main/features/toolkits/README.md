@@ -162,6 +162,8 @@ it is not repeated.
   nothing.
 - **Not busy.** Ember isn't speaking, thinking or calling a tool, and no
   audiobook is playing.
+- **Not disengaged.** After "Ember disengage" Gemini hears only silence, so,
+  like greetings, check-ins wait until the person says "Ember engage".
 
 **Behaviour:**
 - The note asks for one warm sentence, no medical advice, and to drop it if the

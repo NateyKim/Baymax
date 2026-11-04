@@ -23,9 +23,10 @@ class CheckInTests(unittest.TestCase):
         self.wall = 100000.0
         self.talked = self.wall - 20 * 60          # Talked 20 minutes ago.
         self.book = False
+        self.asleep = False
         self.ember = CheckIns(path=self.path, now=lambda: self.local, clock=lambda: self.up,
                               wall=lambda: self.wall, last_conversation=lambda: self.talked,
-                              book_playing=lambda: self.book)
+                              book_playing=lambda: self.book, disengaged=lambda: self.asleep)
         self.ember.started = 0.0
         self.up = 30 * 60
         for patcher in (patch.object(monitor, "state", "listening"),
@@ -69,6 +70,22 @@ class CheckInTests(unittest.TestCase):
                 self.assertIsNone(self.ember.due(), state)
         self.book = True
         self.assertIsNone(self.ember.due())
+
+    def test_quiet_while_disengaged_like_greetings(self):
+        # After "Ember disengage" Gemini hears only silence, so the person could not answer.
+        self.asleep = True
+        self.assertIsNone(self.ember.due())
+        self.asleep = False
+        self.assertEqual(self.ember.due()[0], "morning")
+        from features.conversational_ability.engage import engagement
+        default = CheckIns(path=self.path, now=lambda: self.local, clock=lambda: self.up,
+                           wall=lambda: self.wall, last_conversation=lambda: self.talked,
+                           book_playing=lambda: False)
+        default.started = 0.0
+        with patch.object(engagement, "disengaged", True):
+            self.assertIsNone(default.due())
+        with patch.object(engagement, "disengaged", False):
+            self.assertEqual(default.due()[0], "morning")
 
     def test_disabled_and_windows_turned_off(self):
         with patch.dict("os.environ", {"BAYMAX_CHECKINS": "0"}):
