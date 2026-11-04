@@ -192,6 +192,30 @@ class FallWorkerTests(unittest.TestCase):
             asyncio.run(run())
         self.assertEqual(len(calls), 2)
 
+    def test_a_retried_check_in_still_says_that_playback_was_paused(self):
+        # The first try paused the book; on the retry it is already paused, so
+        # hold_for_answer has nothing to say, but Gemini still has to be told.
+        from features.toolkits import audiobooks
+        worker = fall.FallWorker()
+        worker.alerts.append({"time": time.time(), "recorded": time.monotonic()})
+        texts = []
+
+        async def flaky(**kwargs):
+            texts.append(kwargs["turns"]["parts"][0]["text"])
+            if len(texts) == 1:
+                raise ConnectionResetError()
+            shutdown.set()
+
+        shutdown = asyncio.Event()
+        notes = iter([" The book is paused at chapter 2 so they can hear you and answer.", ""])
+        with patch("asyncio.sleep", AsyncMock()), patch.object(fall, "_record"), \
+                patch("runtime_monitor.notify"), \
+                patch.object(audiobooks, "hold_for_answer", side_effect=lambda reason: next(notes)):
+            asyncio.run(worker._alerts(SimpleNamespace(send_client_content=flaky), shutdown))
+        self.assertEqual(len(texts), 2)
+        for text in texts:
+            self.assertTrue(text.endswith(" The book is paused at chapter 2 so they can hear you and answer."))
+
     def test_a_check_in_cut_off_by_a_cancelled_session_waits_for_the_next(self):
         worker = fall.FallWorker()
         worker.alerts.append({"time": time.time(), "recorded": time.monotonic()})

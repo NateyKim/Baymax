@@ -271,7 +271,9 @@ class FallWorker:
                 from features.conversational_ability.engage import engagement
                 engagement.engage("possible fall")  # The person must be able to answer the check-in.
                 from features.toolkits import audiobooks
-                held = audiobooks.hold_for_answer("possible fall")  # Playback withholds the mic too.
+                # Playback withholds the mic too. A retry finds it already paused (nothing new
+                # to say), so it keeps the first try's note.
+                held = audiobooks.hold_for_answer("possible fall") or alert.get("held", "")
                 try:
                     await session.send_client_content(
                         turns={"role": "user", "parts": [{"text": "[Local experimental fall detector] A possible fall was detected. "
@@ -280,7 +282,7 @@ class FallWorker:
                 except BaseException as error:
                     # Not delivered (a reconnect only resends what was): ask again on the next try.
                     with self.lock:
-                        self.alerts.appendleft({**alert, "recorded": time.monotonic()})
+                        self.alerts.appendleft({**alert, "recorded": time.monotonic(), "held": held})
                     if not isinstance(error, Exception):
                         raise
                     _record("Possible fall check-in could not reach Gemini yet; it will be asked again.")

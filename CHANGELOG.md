@@ -77,7 +77,9 @@
   repeated. A message that never reached Gemini is left to its sender's own retry, so
   nothing is sent twice; the startup greeting now counts as done once it's sent, and
   both fall alerts (`fall_alert_monitor`, the fall toolkit) now retry a failed send
-  themselves. Limit: a message with no reply that is noticed lost after more than 30 s
+  themselves. On this Orange Pi line a retry still tells Gemini that the radio,
+  recording or book was paused for it: the first try paused playback, so the retry's
+  own `hold_for_answer()` had nothing to say and the note was dropped. Limit: a message with no reply that is noticed lost after more than 30 s
   isn't resent (for example a silent Wi-Fi drop during an audiobook, when the mic sends
   only silence and the keepalive notices it up to about 45 s later). An audiobook isn't
   cleared: it goes quiet during the reconnect (at least 7 s) and resumes where it

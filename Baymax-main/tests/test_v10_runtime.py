@@ -55,7 +55,8 @@ class V10RuntimeTests(unittest.TestCase):
             def clear(self):
                 pass
         with patch('test_public_core_integration.CORE', V10):
-            alert = load_function('fall_alert_monitor', {'asyncio': asyncio, '_fall_detected_event': FallEvent()})
+            alert = load_function('fall_alert_monitor', {'asyncio': asyncio, '_fall_detected_event': FallEvent(),
+                                                               '_fall_held_note': ''})
         session = AsyncMock()
         with patch.multiple(engagement, disengaged=True, listener=None):
             with self.assertRaises(asyncio.CancelledError):
@@ -80,7 +81,8 @@ class V10RuntimeTests(unittest.TestCase):
             def clear(self):
                 pass
         with patch('test_public_core_integration.CORE', V10):
-            alert = load_function('fall_alert_monitor', {'asyncio': asyncio, '_fall_detected_event': FallEvent()})
+            alert = load_function('fall_alert_monitor', {'asyncio': asyncio, '_fall_detected_event': FallEvent(),
+                                                               '_fall_held_note': ''})
         player = Player(listener_factory=FakeListener, notify=lambda text: None)
         self.addCleanup(player.control, "stop", {})
         player.play(Station(STATION, stream=live, minutes=0))   # 0: never pauses on its own.
@@ -422,7 +424,8 @@ class ReconnectTests(unittest.TestCase):
             if len(attempts) == 2:
                 raise asyncio.CancelledError()  # the session ends
             raise ConnectionResetError()
-        namespace = {"asyncio": asyncio, "_fall_detected_event": event, "print": lambda *a, **k: None}
+        namespace = {"asyncio": asyncio, "_fall_detected_event": event, "_fall_held_note": "",
+                     "print": lambda *a, **k: None}
         with patch("test_public_core_integration.CORE", V10):
             monitor_fn = load_function("fall_alert_monitor", namespace)
         with patch("features.conversational_ability.engage.engagement"), patch("asyncio.sleep", AsyncMock()), \
@@ -430,6 +433,47 @@ class ReconnectTests(unittest.TestCase):
             asyncio.run(monitor_fn(SimpleNamespace(send_client_content=unreachable)))
         self.assertEqual(len(attempts), 2)
         self.assertTrue(event.is_set())  # still pending for the next connection
+
+    def test_a_retried_fall_alert_still_says_that_playback_was_paused(self):
+        # The first try paused the radio; on the retry it is already paused, so
+        # hold_for_answer has nothing to say, but Gemini still has to be told.
+        event = threading.Event()
+        event.set()
+        texts = []
+
+        async def unreachable(**kwargs):
+            texts.append(kwargs["turns"]["parts"][0]["text"])
+            if len(texts) == 2:
+                raise asyncio.CancelledError()  # the session ends
+            raise ConnectionResetError()
+        namespace = {"asyncio": asyncio, "_fall_detected_event": event, "_fall_held_note": "",
+                     "print": lambda *a, **k: None}
+        with patch("test_public_core_integration.CORE", V10):
+            monitor_fn = load_function("fall_alert_monitor", namespace)
+        notes = iter([" Jazz FM is paused so they can hear you and answer.", ""])
+        with patch("features.toolkits.audiobooks.hold_for_answer", side_effect=lambda reason: next(notes)), \
+                patch("features.conversational_ability.engage.engagement"), patch("asyncio.sleep", AsyncMock()), \
+                self.assertRaises(asyncio.CancelledError):
+            asyncio.run(monitor_fn(SimpleNamespace(send_client_content=unreachable)))
+        for text in texts:
+            self.assertTrue(text.endswith(" Jazz FM is paused so they can hear you and answer."))
+        # Kept for the next connection, and dropped once an alert is delivered.
+        self.assertEqual(namespace["_fall_held_note"], " Jazz FM is paused so they can hear you and answer.")
+        event.set()
+        delivered = []
+
+        async def reachable(**kwargs):
+            delivered.append(kwargs["turns"]["parts"][0]["text"])
+            if len(delivered) == 1:
+                event.set()  # a second fall, with nothing playing any more
+                return
+            raise asyncio.CancelledError()
+        with patch("features.toolkits.audiobooks.hold_for_answer", return_value=""), \
+                patch("features.conversational_ability.engage.engagement"), patch("asyncio.sleep", AsyncMock()), \
+                self.assertRaises(asyncio.CancelledError):
+            asyncio.run(monitor_fn(SimpleNamespace(send_client_content=reachable)))
+        self.assertTrue(delivered[0].endswith("is paused so they can hear you and answer."))
+        self.assertNotIn("paused", delivered[1])
 
     def test_a_failed_resend_stays_queued_for_the_next_connection(self):
         namespace = {"_cut_off_prompts": [((), {"turn_complete": True}), ((), {"turn_complete": True, "n": 2})]}

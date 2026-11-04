@@ -571,6 +571,7 @@ _latest_frame_lock = threading.Lock()
 
 # ─── Fall detection event (thread → async monitor) ──────────────────────────
 _fall_detected_event = threading.Event()
+_fall_held_note = ""  # a fall alert to send again keeps its first try's note that playback paused
 _shutdown_event = threading.Event()
 _stop_started_ts = 0.0  # time.monotonic() when the session was cancelled to stop
 
@@ -1620,6 +1621,7 @@ async def send_video_realtime(session):
 
 async def fall_alert_monitor(session):
     """Watches the fall detection event and injects an alert into the Gemini session."""
+    global _fall_held_note
     from features.conversational_ability.engage import engagement
     loop = asyncio.get_running_loop()
     while True:
@@ -1631,8 +1633,10 @@ async def fall_alert_monitor(session):
         _fall_detected_event.clear()
         engagement.engage('possible fall')
         # Radio, recordings and audiobooks withhold the mic from Gemini: pause them so they can answer.
+        # A retry finds playback already paused (nothing new to say), so it keeps the first note.
         from features.toolkits import audiobooks
-        held = audiobooks.hold_for_answer('possible fall')
+        held = audiobooks.hold_for_answer('possible fall') or _fall_held_note
+        _fall_held_note = ""
 
         print("[FALL] Injecting fall alert into Gemini session...", flush=True)
         try:
@@ -1652,6 +1656,7 @@ async def fall_alert_monitor(session):
         except BaseException as e:
             # Not delivered (a reconnect only resends what was): ask again on the next try.
             _fall_detected_event.set()
+            _fall_held_note = held
             if not isinstance(e, Exception):
                 raise
             print(f"[FALL] Failed to inject alert: {e}; asking again shortly")
