@@ -447,7 +447,7 @@ class ReconnectTests(unittest.TestCase):
         source = V10.read_text(encoding="utf-8")
         main = source[source.index('if __name__ == "__main__":'):]
         self.assertIn("except (KeyboardInterrupt, asyncio.CancelledError):", main)
-        self.assertLess(main.index("except (KeyboardInterrupt"), main.index("_summarise_and_embed()"))
+        self.assertLess(main.index("except (KeyboardInterrupt"), main.index("_save_memories_on_stop(memory_deadline)"))
 
     def test_every_session_end_abandons_the_reply_and_drops_the_socket_before_leaving_connect(self):
         source = V10.read_text(encoding="utf-8")

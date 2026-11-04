@@ -462,7 +462,7 @@ class StopPathTests(unittest.TestCase):
 
     def test_stop_path_saves_only_the_rest_within_the_budget(self):
         main = CORE.read_text(encoding="utf-8").split('if __name__ == "__main__":')[1]
-        stop = main[main.index("except KeyboardInterrupt:"):]
+        stop = main[main.index("except (KeyboardInterrupt, asyncio.CancelledError):"):]
         self.assertIn("memory_deadline = (_stop_started_ts or time.monotonic()) + MEMORY_STOP_SECONDS", stop)
         self.assertIn("_save_memories_on_stop(memory_deadline)", stop)
         self.assertNotIn("_summarise_and_embed(", main)
@@ -495,7 +495,9 @@ class TeardownTests(unittest.TestCase):
               "_shutdown_event": threading.Event(), "start_output_stream": Mock,
               "listen_audio": forever, "send_audio_realtime": forever, "send_video_realtime": forever,
               "receive_audio": forever, "fall_alert_monitor": forever, "initiation_monitor": forever,
-              "fall_worker": SimpleNamespace(alert_monitor=forever), "monitor_queues": forever}
+              "fall_worker": SimpleNamespace(alert_monitor=forever), "monitor_queues": forever,
+              # The reconnect fix's per-session steps (tested in test_v10_runtime.ReconnectTests).
+              "_send_cut_off_prompts": forever, "_abandon_reply": Mock(), "_abort_connection": Mock()}
         load_function("run", ns)
         return ns
 
@@ -513,6 +515,8 @@ class TeardownTests(unittest.TestCase):
         with patch("builtins.print"):
             cancelled_at, done_at = asyncio.run(stop())
         self.assertLess(done_at - cancelled_at, 1.0)  # no 2 s pause: nothing reconnects
+        ns["_abandon_reply"].assert_called_once()  # a stop ends the session like a disconnect
+        ns["_abort_connection"].assert_called_once()
         self.assertTrue(ns["_shutdown_event"].is_set())  # no new uptime save starts
         self.assertGreaterEqual(ns["_stop_started_ts"], cancelled_at)
         self.assertLessEqual(ns["_stop_started_ts"], done_at)
