@@ -33,7 +33,10 @@
     Baymax PR #20, installs packages only from `requirements-orange-pi.txt` (its
     separate v10 list is gone; the import check adds chromadb, onnxruntime,
     tokenizers), and keeps memory, reminders and logs in `~/ember-deployment/data`
-    and downloaded models in `~/ember-deployment/shared` across updates. The Debian
+    and downloaded models in `~/ember-deployment/shared` across updates on cards
+    built by this builder (a card from an older image keeps its own updater, which
+    does neither: reflash it, or move the data by hand as the OPI4-Flash README
+    says). The Debian
     prerequisites install git, which the updater needs on a fresh 5 Max.
   - Pending on the boards: CPU summed over Ember and its pose/face processes (NPU vs
     `BAYMAX_POSE_BACKEND=cpu`, with and without the fall toolkit), pose round-trip

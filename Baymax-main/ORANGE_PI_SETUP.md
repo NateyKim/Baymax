@@ -14,7 +14,7 @@ fast-core pinning) or comes from how the board is set up:
 
 On the Orange Pi 4 Pro the SD image installs everything below itself (packages,
 Python environment, services, updates that keep memory in
-`~/ember-deployment/data`); the board-specific sections here (pose, pinning, memory)
+`~/ember-deployment/data` on a card built by this repository's builder); the board-specific sections here (pose, pinning, memory)
 apply to it too. Nothing in this guide has been run on an Orange Pi 4 Pro yet.
 
 On an Orange Pi 5 Max with Armbian Debian 13 (vendor kernel 6.1), `requirements-orange-pi.txt` installed (Praat-Parselmouth and miniaudio build from source, about 30 minutes; memory's packages and rknn-toolkit-lite2 joined the file later; at commit e938983 `pip install -r requirements-orange-pi.txt` added them in 55 s with `pip check` clean) and the offline suite passed (`check_release.py` at commit 61c410e: core 352 tests, 15 of them skipped, 0 failures; toolkit 158, 0 skipped). By the counts the 15 skipped are the 14 git-based updater tests (git was not installed on the board) and the off-RK3588 default test, so the updater's tests have not run on the board yet (**0 - Debian Prerequisites** now installs git: rerun; confirm the skips with a verbose run). Those figures predate this repository's merge (see Pose below). Still to be checked on the board: Ember running live (it has not been started there yet, on the CPU or the NPU: audio, camera, conversation, the live view, the fall toolkit's status; the camera loop's FPS and frame age with the 1-frame camera buffer below; with the NPU: the backend inside Ember end to end), the updater's tests, thermals over a long run, and fall accuracy at home.
