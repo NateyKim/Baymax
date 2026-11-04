@@ -6,7 +6,8 @@ __pycache__/
 
 # Large model files
 all-MiniLM-L6-v2-onnx/
-pose_landmarker_full.task
+pose_landmarker_*.task
+pose_landmarker_*.task.part
 
 # Runtime data / databases
 chroma_store/

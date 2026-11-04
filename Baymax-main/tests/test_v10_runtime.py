@@ -275,7 +275,7 @@ class PoseProcessRestartTests(unittest.TestCase):
         def close(self):
             self.closed = True
 
-    def run_thread(self, children, frames=5, pose_tracking=True):
+    def run_thread(self, children, frames=5, pose_tracking=True, download_error=None):
         import collections
         shutdown = threading.Event()
 
@@ -316,7 +316,7 @@ class PoseProcessRestartTests(unittest.TestCase):
             "cv2": SimpleNamespace(VideoCapture=lambda index: Capture(), CAP_PROP_FRAME_WIDTH=3,
                                    CAP_PROP_FRAME_HEIGHT=4),
             "POSE_TRACKING_ENABLED": pose_tracking, "FALL_DETECTION_ENABLED": False, "FallDetector": Mock(),
-            "_ensure_pose_model": Mock(), "_open_pose": open_pose, "fall_worker": Mock(),
+            "_ensure_pose_model": Mock(side_effect=download_error), "_open_pose": open_pose, "fall_worker": Mock(),
             "FALL_DETECTION_FPS": 1000, "FALL_ANGLE_THRESHOLD": 60.0, "FALL_ANG_VEL_THRESHOLD": 1.0,
             "FALL_HIP_VEL_THRESHOLD": 1.0, "FALL_HISTORY_FRAMES": 6, "FALL_CONFIRMATION_FRAMES": 2,
             "FALL_COOLDOWN_SECONDS": 30.0, "FALL_STAY_DOWN_SECONDS": 2.0, "FALL_DBG_INTERVAL_S": 1.0,
@@ -383,10 +383,57 @@ class PoseProcessRestartTests(unittest.TestCase):
         self.assertEqual(faces, [None] * 5)
         ns["fall_worker"].share.assert_not_called()
 
+    def test_a_pose_model_that_cannot_be_downloaded_leaves_video_running(self):
+        # A new release's first start without network: the thread used to end, taking video with it.
+        ns, latest, faces, opened, logged = self.run_thread([self.Working()], download_error=OSError("offline"))
+        self.assertEqual(opened, [])
+        self.assertIn("Could not download the pose model (offline); video only", logged)
+        self.assertEqual(latest, ["frame2", "frame3", "frame4", "frame5", "frame6", None])
+        self.assertEqual(faces, [None] * 5)
+        ns["fall_worker"].stop.assert_called_once()
+
     def test_pose_tracking_off_starts_no_pose_process(self):
         ns, latest, faces, opened, logged = self.run_thread([], pose_tracking=False)
         self.assertEqual(opened, [])
         self.assertEqual(latest[:-1], ["frame2", "frame3", "frame4", "frame5", "frame6"])
+
+
+class PoseModelDownloadTests(unittest.TestCase):
+    """_ensure_pose_model writes through a link (the 4 Pro image links each release's
+    .task into ~/ember-deployment/shared) and never leaves a cut download as the model."""
+
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        root = Path(directory.name)
+        (root / "shared").mkdir()
+        (root / "release").mkdir()
+        self.shared = root / "shared" / "pose_landmarker_lite.task"
+        self.path = root / "release" / "pose_landmarker_lite.task"
+        self.path.symlink_to(self.shared)                  # dangling until the first download
+
+    def ensure(self, retrieve):
+        ns = {"os": os, "urllib": SimpleNamespace(request=SimpleNamespace(urlretrieve=retrieve)),
+              "_POSE_MODEL_PATH": str(self.path), "_POSE_MODEL_URL": "https://example.invalid/pose.task"}
+        with patch("builtins.print"):
+            load_function("_ensure_pose_model", ns)()
+
+    def test_the_download_lands_in_shared_and_the_link_stays(self):
+        def retrieve(url, filename):
+            Path(filename).write_bytes(b"model")
+        self.ensure(retrieve)
+        self.assertTrue(self.path.is_symlink())
+        self.assertEqual(self.shared.read_bytes(), b"model")
+        self.assertEqual(sorted(p.name for p in self.shared.parent.iterdir()), ["pose_landmarker_lite.task"])
+        self.ensure(Mock(side_effect=AssertionError("downloaded again")))   # the next release has it
+
+    def test_a_cut_download_is_not_taken_for_the_model(self):
+        def retrieve(url, filename):
+            Path(filename).write_bytes(b"mod")
+            raise OSError("connection reset")
+        with self.assertRaises(OSError):
+            self.ensure(retrieve)
+        self.assertFalse(self.path.exists())             # so the next start downloads it again
 
 
 class OpenPoseTests(unittest.TestCase):

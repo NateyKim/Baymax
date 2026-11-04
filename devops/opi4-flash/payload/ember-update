@@ -64,6 +64,13 @@ for NAME in all-MiniLM-L6-v2-onnx models .models; do
     ln -s "$BASE/shared/$NAME" "$RELEASE/Baymax-main/$NAME"
   fi
 done
+# The camera's pose model is a file next to the code (camera.pose_model picks which):
+# link each into shared; Ember's first download fills the link's target there.
+for NAME in pose_landmarker_lite.task pose_landmarker_full.task pose_landmarker_heavy.task; do
+  if [ ! -e "$RELEASE/Baymax-main/$NAME" ] && [ ! -L "$RELEASE/Baymax-main/$NAME" ]; then
+    ln -s "$BASE/shared/$NAME" "$RELEASE/Baymax-main/$NAME"
+  fi
+done
 # Code-only update: share the working environment instead of reinstalling every package.
 # shortcut: the shared .venv lives in an older release folder, so never delete release folders.
 CURRENT=$(readlink -f "$BASE/current" 2>/dev/null || true)

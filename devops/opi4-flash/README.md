@@ -143,8 +143,11 @@ audiobooks, wake words and memory included; the only dependency list), checked t
 the native ones import, and run its complete offline release gate. First boot enables
 services, sets the AnyDesk password and checks Git. Only if the selected branch has
 new commits does it install that release, downloading any changed Python packages.
-On its first start Ember downloads its pose model and the memory model (about 90 MB
-from huggingface.co); both are kept for later releases.
+On its first start Ember downloads its pose model (`pose_landmarker_lite.task` by
+default, from storage.googleapis.com) and the memory model (about 90 MB from
+huggingface.co) into `~/ember-deployment/shared`, which every later release links to.
+If the pose model cannot be downloaded, Ember runs with video only (no fall detection
+or face presence) and tries again on its next start.
 No extra microphone/camera streams are opened by hardware enumeration or tests.
 
 The conversation service starts **`run_mvp.py`**, which wraps the same v10

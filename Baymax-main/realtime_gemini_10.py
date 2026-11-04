@@ -132,8 +132,13 @@ _POSE_MODEL_URL = (
 
 def _ensure_pose_model():
     if not os.path.exists(_POSE_MODEL_PATH):
-        print(f"[FALL] Downloading pose landmarker model → {_POSE_MODEL_PATH} (~12 MB) ...")
-        urllib.request.urlretrieve(_POSE_MODEL_URL, _POSE_MODEL_PATH)
+        # realpath: on the Orange Pi 4 Pro image the path is a link into
+        # ~/ember-deployment/shared, so the download serves every later release. The .part
+        # file: a download cut short (no network, power) never looks like a model.
+        target = os.path.realpath(_POSE_MODEL_PATH)
+        print(f"[FALL] Downloading pose landmarker model → {target} (~12 MB) ...")
+        urllib.request.urlretrieve(_POSE_MODEL_URL, target + ".part")
+        os.replace(target + ".part", target)
         print("[FALL] Model downloaded.")
 
 def _open_pose(force_cpu=False):
@@ -1075,8 +1080,14 @@ def _fall_detection_thread():
     started again once, on the CPU; video continues either way."""
     global _latest_frame, _annotated_frame, _annotated_inputs
 
+    pose_model_ready = False
     if POSE_TRACKING_ENABLED:
-        _ensure_pose_model()
+        try:
+            _ensure_pose_model()
+            pose_model_ready = True
+        except Exception as error:  # e.g. no network on a new release's first start: keep video
+            print(f"[CAM] Could not download the pose model ({error}); video only, no fall detection "
+                  "or face presence until Ember restarts.", flush=True)
 
     # fall_detection.enabled = false in device.toml turns off only the fall
     # check; pose tracking still feeds video and face presence.
@@ -1140,7 +1151,7 @@ def _fall_detection_thread():
     try:
         # Pose runs in its own process (_open_pose): in this one it held the GIL and
         # starved the mic callback and Gemini I/O (overflows, minute-late replies).
-        if POSE_TRACKING_ENABLED:
+        if pose_model_ready:
             landmarker = _open_pose()
             if landmarker is None:
                 # E.g. librknnrt crashed the child while it set up the NPU (before its first

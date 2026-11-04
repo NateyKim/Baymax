@@ -1,5 +1,6 @@
 """Updater controls must leave an existing release usable without network access."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -107,6 +108,11 @@ esac
                     link = base / 'current/Baymax-main' / name
                     self.assertTrue(link.is_symlink(), name)
                     self.assertEqual(link.resolve(), (base / 'shared' / name).resolve())
+                for model in ('lite', 'full', 'heavy'):   # the pose model: a link until Ember downloads it
+                    name = f'pose_landmarker_{model}.task'
+                    link = base / 'current/Baymax-main' / name
+                    self.assertTrue(link.is_symlink(), name)
+                    self.assertEqual(Path(os.readlink(link)), base / 'shared' / name)
             else:
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse(active.exists())
