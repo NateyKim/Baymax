@@ -3,6 +3,7 @@ no models, no NPU, no camera. Parity with MediaPipe runs only when converted mod
 onnxruntime, mediapipe and the sample image are present, and is skipped otherwise."""
 import ast
 import functools
+import inspect
 import json
 import math
 import os
@@ -736,6 +737,45 @@ class RuntimeWiringTests(unittest.TestCase):
         self.assertNotIn("import mediapipe", source)
         self.assertNotIn("mp_vision", source)
         self.assertNotIn("create_pose_backend(", source)
+
+    @staticmethod
+    def fake_mediapipe():
+        """mediapipe.tasks stand-ins that record the options they are given."""
+        vision = SimpleNamespace(PoseLandmarkerOptions=lambda **options: SimpleNamespace(**options),
+                                 RunningMode=SimpleNamespace(IMAGE="IMAGE", VIDEO="VIDEO", LIVE_STREAM="LIVE_STREAM"),
+                                 PoseLandmarker=SimpleNamespace(create_from_options=Mock()))
+        tasks_python = SimpleNamespace(BaseOptions=lambda **options: SimpleNamespace(**options), vision=vision)
+        modules = {"mediapipe": SimpleNamespace(), "mediapipe.tasks": SimpleNamespace(python=tasks_python),
+                   "mediapipe.tasks.python": tasks_python, "mediapipe.tasks.python.vision": vision}
+        return vision, modules
+
+    def test_the_camera_mediapipe_settings(self):
+        # These were asserted on the camera loop's own PoseLandmarker before pose moved into
+        # the vision process; default_mediapipe_options is now their only source.
+        vision, modules = self.fake_mediapipe()
+        with patch.dict(sys.modules, modules):
+            options = backend.default_mediapipe_options(Path("x.task"))
+        settings = vars(options)
+        self.assertEqual(vars(settings.pop("base_options")), {"model_asset_path": "x.task"})
+        self.assertEqual(settings, {"running_mode": "VIDEO",          # detect_for_video needs VIDEO
+                                    "num_poses": 1, "min_pose_detection_confidence": 0.5,
+                                    "min_pose_presence_confidence": 0.5, "min_tracking_confidence": 0.5})
+        # The NPU/ONNX port gets no options from ChildPose: its defaults must match these.
+        defaults = inspect.signature(P.PosePipeline).parameters
+        confidences = backend.pipeline_confidences(options)
+        self.assertEqual(len(confidences), 3)
+        for keyword, value in confidences.items():
+            self.assertEqual(defaults[keyword].default, value, keyword)
+
+    def test_the_pose_process_gives_mediapipe_the_cameras_task(self):
+        vision, modules = self.fake_mediapipe()
+        with patch.dict(sys.modules, modules), patch("builtins.print"):
+            pose = backend.ChildPose("pose_landmarker_lite.task", allow_npu=False)   # no cpu_factory: as Ember
+        self.assertEqual(pose.device, "CPU")
+        options = vision.PoseLandmarker.create_from_options.call_args.args[0]
+        self.assertEqual(options.base_options.model_asset_path, "pose_landmarker_lite.task")
+        self.assertEqual(options.running_mode, "VIDEO")
+        self.assertEqual(options.num_poses, 1)
 
     def test_converter_without_its_environments_explains_the_setup(self):
         from features.pose import convert_rknn

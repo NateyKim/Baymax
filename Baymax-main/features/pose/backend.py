@@ -57,7 +57,10 @@ def _log(message):
 
 
 def default_mediapipe_options(model_path):
-    """The runtime's PoseLandmarker settings (realtime_gemini_10.py passes its own)."""
+    """The camera's PoseLandmarker settings: ChildPose (realtime_gemini_10.py's pose
+    process) uses them for MediaPipe on the CPU, and benchmark.py/validate.py too. VIDEO
+    mode is required (MediaPipeCpuBackend calls detect_for_video). The NPU/ONNX port's
+    PosePipeline defaults are the same 0.5 confidences."""
     from mediapipe.tasks import python as mp_tasks
     from mediapipe.tasks.python import vision
     return vision.PoseLandmarkerOptions(
