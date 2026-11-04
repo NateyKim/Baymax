@@ -124,6 +124,24 @@ class LookCloselyTests(unittest.TestCase):
     def test_registered_on_existing_camera_frames(self):
         self.assertIn(look_closely.camera.observe, fall_detection.frame_observers)
 
+    def test_v10_camera_hook_delivers_full_frames(self):
+        # v10's camera thread hands every 640x480 frame to fall_worker.submit in the main
+        # process; only pose inference goes to the vision child. That is the frame sent here.
+        from pathlib import Path
+        v10 = (Path(__file__).resolve().parents[1] / "realtime_gemini_10.py").read_text(encoding="utf-8")
+        self.assertIn("fall_worker.submit(frame)", v10)
+        self.assertLess(v10.index("fall_worker.submit(frame)"), v10.index("landmarker.detect(frame)"))
+        frame = sharp_frame()
+        session = SimpleNamespace(send_realtime_input=AsyncMock())
+        with patch.object(look_closely, "camera", self.camera), \
+                patch.object(fall_detection, "frame_observers", [self.camera.observe]), \
+                patch("runtime_monitor.sensor_alive"):
+            fall_detection.worker.submit(frame)
+            result = asyncio.run(look_closely.run(session))
+        self.assertIs(self.camera.latest()[0], frame)
+        self.assertEqual(result["photo"].split(",")[0], "640x480")
+        session.send_realtime_input.assert_awaited_once()
+
 
 if __name__ == "__main__":
     unittest.main()
