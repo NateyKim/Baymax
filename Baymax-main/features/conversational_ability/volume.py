@@ -8,10 +8,11 @@ lowest level is 1, never mute, so a fall check-in can't be silenced by accident.
 
 Only Ember's voice (Gemini's replies and the waiting cue) is scaled, before the
 echo canceller's reference, so echo cancellation keeps matching what is played.
-Audiobooks keep their own volume (the audiobook tool). The level is saved on the
-robot (voice_volume.json in BAYMAX_DATA_DIR) and survives restarts;
-BAYMAX_VOICE_VOLUME (1-10) sets the level before anyone has changed it. Nothing is
-sent anywhere and no device is opened: the speaker stream is the existing one.
+Audiobooks, radio and recordings keep their own volume (the audiobook and listen
+tools). The level is saved on the robot (voice_volume.json in BAYMAX_DATA_DIR) and
+survives restarts; BAYMAX_VOICE_VOLUME (1-10) sets the level before anyone has
+changed it. Nothing is sent anywhere and no device is opened: the speaker stream is
+the existing one.
 """
 import copy
 import json
@@ -31,7 +32,7 @@ LIMIT = 0.7 * 32767  # The soft limiter starts here; it never reaches full scale
 
 DECLARATION = {
     "name": NAME,
-    "description": "Change how loud Ember's own voice is (not an audiobook's), or report it.",
+    "description": "Change how loud Ember's own voice is (not an audiobook's, radio's or recording's), or report it.",
     "parameters": {"type": "OBJECT", "properties": {
         "change": {"type": "STRING", "enum": ["louder", "quieter", "default", "status"],
                    "description": "Relative change, back to the usual level, or just report it."},
@@ -45,8 +46,8 @@ an exact level from 1 to 10, default for the usual level 7, or status). Then ans
 in one short sentence, such as "Is this better?": your reply already plays at the
 new level. If the result says it is already the loudest, say so and suggest turning
 up the speaker itself. Never change it unless asked. It is never fully muted. While
-an audiobook plays, "louder" or "quieter" about the book means the audiobook tool's
-volume, not this one.
+an audiobook, radio station or recording plays, "louder" or "quieter" about it means
+the volume action of the audiobook or listen tool, not this one.
 """
 
 

@@ -157,6 +157,17 @@ class VoiceVolumeWiringTests(unittest.TestCase):
             self.assertIn("[VOICE VOLUME]", config["system_instruction"])
             self.assertEqual(gemini_tools.execute(volume.NAME, {"change": "louder"}), {"level": 8})
 
+    def test_playback_volume_stays_with_the_audiobook_and_listen_tools(self):
+        # "Louder" about a book, station or recording is that player's volume, not Ember's voice.
+        from features.toolkits import gemini_tools
+        with patch.dict(os.environ, {"BAYMAX_TOOLKIT_ENABLED": "1", "BAYMAX_LISTEN_ENABLED": "1"}):
+            config = gemini_tools.extend_config({"system_instruction": "base", "tools": []})
+        names = {d["name"] for tool in config["tools"] for d in tool.get("function_declarations", [])}
+        self.assertLessEqual({volume.NAME, "audiobook", "listen"}, names)
+        self.assertIn("radio station or recording plays", volume.INSTRUCTION)
+        self.assertIn("audiobook or listen tool", volume.INSTRUCTION)
+        self.assertIn("radio's", volume.DECLARATION["description"])
+
     def test_tool_can_be_switched_off(self):
         with patch.dict(os.environ, {"BAYMAX_VOICE_VOLUME_TOOL": "0"}):
             config = {"system_instruction": "base", "tools": []}

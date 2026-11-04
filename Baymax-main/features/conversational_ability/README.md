@@ -249,9 +249,9 @@ Ember's short confirmation already plays at the new level.
   accident. A level change ramps across one speaker block, so there's no click.
 - **What it changes:** Ember's voice only (Gemini's replies and the waiting cue), on the
   speaker callback, before audiobooks are mixed in and before the echo canceller's
-  reference. Echo cancellation therefore keeps matching what is played. Audiobooks keep
-  their own volume (the audiobook tool's `volume`). The system speaker level is not
-  touched.
+  reference. Echo cancellation therefore keeps matching what is played. Audiobooks,
+  radio and recordings keep their own volume (the `volume` action of the audiobook or
+  `listen` tool). The system speaker level is not touched.
 - **Saved:** `voice_volume.json` in `BAYMAX_DATA_DIR` (next to the code by default), so
   the level survives restarts. `BAYMAX_VOICE_VOLUME` (1-10) in `.env` sets the level
   before anyone has changed it; a saved level wins. An unreadable file or value falls
