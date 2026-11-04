@@ -1,5 +1,18 @@
 # MVP (unreleased)
 
+- Let the person change how loud Ember speaks (`features/conversational_ability/volume.py`).
+  "Ember, speak louder", "softer" or "set your volume to 8" call a new
+  `set_voice_volume` tool, and the confirmation already plays at the new level. The
+  scale is 1-10; 7 is the original loudness and leaves the audio unchanged, so nothing
+  changes until someone asks. Above 7 a soft limiter avoids harsh clipping (up to
+  about +6 dB); the lowest level is 1, never mute, so a fall check-in can't be silenced.
+  Only Ember's voice is scaled, before audiobooks are mixed in and before the echo
+  canceller's reference; audiobooks keep their own volume. The level is saved in
+  `voice_volume.json` and survives restarts; `BAYMAX_VOICE_VOLUME` sets the starting
+  level and `BAYMAX_VOICE_VOLUME_TOOL=0` stops offering the tool. Offline tests cover
+  levels, saving, gain, limiting, ramping and the speaker callback order; not yet tried
+  on a robot's speaker or with real Gemini tool calls.
+
 - Offline checks run on every pull request: `.github/workflows/offline-checks.yml`
   (Natey's `docs/ci/desktop-offline.yml.example`, enabled and extended to
   Linux) runs `check_release.py` on Ubuntu, Windows and macOS, adds the result
