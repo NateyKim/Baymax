@@ -292,8 +292,10 @@ there is no wake word: people talk to Ember without saying its name.
 - **Fallbacks:** without audio cleanup (`BAYMAX_AUDIO_ENHANCEMENT=0`), there is
   no mic gate, so Ember says disengage is unavailable and keeps listening. If
   the Vosk library or model is missing, Ember engages again at once and says
-  so, so it can never be left unable to hear. While the model is still loading,
-  the mic stays withheld.
+  so, so it can never be left unable to hear. That is always the case on a Mac
+  installed from `requirements-pc.txt`, which skips Vosk (no macOS wheel), so
+  disengage is not available there. While the model is still loading, the mic
+  stays withheld.
 - **Disable:** `BAYMAX_ENGAGE_WORDS=0` (no prompt section, transcript matching ignored).
 - **Data flows:** none new. While disengaged, less audio goes to Gemini.
 - **PR #20 integration:** retains its reminder occurrences/follow-ups, audiobook

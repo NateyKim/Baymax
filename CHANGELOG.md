@@ -22,7 +22,9 @@
   GitHub's Linux ARM64 runner (`ubuntu-24.04-arm`); the others use the desktop
   pins, so code needing NumPy 2 or OpenCV 4.13 passed CI and broke on the OPI4.
   `requirements-pc.txt` skips Vosk on macOS, which has no wheel, so the Mac
-  install no longer fails. A green run is offline evidence only.
+  install no longer fails. A Mac then has no offline wake words: no pause words
+  during audiobooks, radio or recordings, and on this line "Ember disengage" is
+  refused with a spoken note. A green run is offline evidence only.
 
 - Gemini-in-the-loop evaluation without a robot: `evals/live_eval.py` builds
   the MVP's real Live config from the runtime `run_pc.py` launches
