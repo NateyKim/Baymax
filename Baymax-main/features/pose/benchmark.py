@@ -1,7 +1,7 @@
 """Per-frame pose time on this machine: MediaPipe on the CPU vs the port on the NPU.
 
     .venv/bin/python features/pose/benchmark.py [--frames 300] [--video clip.mp4] [--core 0]
-                                                [--fps 15] [--empty]
+                                                [--fps 10] [--empty]
 
 Runs MediaPipe exactly as the camera thread does (same options, BGR->RGB, VIDEO mode)
 and the NPU backend (features/pose pipeline + RKNN) on the same frames, after the same
@@ -16,7 +16,7 @@ every frame). Never opens a camera. ONNX Runtime is added when installed. The NP
 needs the converted models (convert_rknn.py).
 
 By default frames run back to back, which keeps the CPU and NPU clocked up: that is
-throughput. --fps 15 paces them like the camera thread (it sleeps to each frame's
+throughput. --fps 10 paces them like the camera thread (it sleeps to each frame's
 slot), so the clocks drop between frames as in Ember and each frame takes longer; this
 is what the Monitor's inference time shows, and the CPU share is per core at that rate.
 """
@@ -134,7 +134,7 @@ def main(argv=None):
     parser.add_argument("--video")
     parser.add_argument("--empty", action="store_true", help="nobody in view: the detector runs every frame")
     parser.add_argument("--fps", type=float, default=0,
-                        help="pace frames like the camera thread (15 in Ember); default 0 = back to back")
+                        help="pace frames like the camera thread (10 in Ember); default 0 = back to back")
     parser.add_argument("--core", default=None, help="NPU core: 0, 1, 2, 0_1, 0_1_2 or auto (default BAYMAX_POSE_NPU_CORE or 0)")
     parser.add_argument("--task", default=str(ROOT / "pose_landmarker_full.task"))
     parser.add_argument("--no-pin", action="store_true", help="don't pin to the fast cores like the runtime")

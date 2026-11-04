@@ -51,7 +51,7 @@ traceback once and switches to MediaPipe for the rest of the run.
 | `engines.py` | `OnnxEngine` (ONNX Runtime CPU) and `RknnEngine` (`rknnlite`, imported only here, lazily). |
 | `models.py` | Model directory, pinned SHA-256s, manifest. Standard library only. |
 | `convert_rknn.py`, `setup_converter.sh` | Board-side conversion (below). |
-| `benchmark.py` | Per-frame ms and process CPU (all threads, while each frame's pose runs): MediaPipe CPU vs NPU (and ONNX Runtime if installed); back to back by default, `--fps 15` paces like the camera, `--empty` for nobody in view. |
+| `benchmark.py` | Per-frame ms and process CPU (all threads, while each frame's pose runs): MediaPipe CPU vs NPU (and ONNX Runtime if installed); back to back by default, `--fps 10` paces like the camera, `--empty` for nobody in view. |
 | `validate.py` | Development: port vs MediaPipe on video clips; numbers in [VALIDATION.md](VALIDATION.md). |
 
 ## The models
@@ -107,7 +107,7 @@ rknn-toolkit-lite2 in the app's `.venv` (see [ORANGE_PI_SETUP.md](../../ORANGE_P
 ```bash
 features/pose/setup_converter.sh            # once; --rknn-version 2.5.0 to try the newer toolkit
 .venv/bin/python features/pose/convert_rknn.py   # export-onnx, build-rknn, check
-.venv/bin/python features/pose/benchmark.py      # back to back; --fps 15 [--empty] paces like Ember
+.venv/bin/python features/pose/benchmark.py      # back to back; --fps 10 [--empty] paces like Ember
 ```
 
 Stop Ember (**4 - Stop Ember**) before `convert_rknn.py check` or
@@ -161,7 +161,7 @@ synthetic sequence. A failed check keeps Ember on the CPU, so don't add `--video
 decide whether to use the NPU; a plain `convert_rknn.py check` restores it. To see how
 the NPU behaves on your footage, compare it with MediaPipe (Ember stopped):
 `.venv/bin/python -m features.pose.validate --engine npu --task pose_landmarker_full.task
---onnx-dir .models/pose_npu --fps 15 my_clip.mp4` (VALIDATION.md, "On the Orange Pi").
+--onnx-dir .models/pose_npu --fps 10 my_clip.mp4` (VALIDATION.md, "On the Orange Pi").
 
 Toolkit versions: 2.3.2 is the default; 2.5.0 (released 2026-10-13) needs
 `setuptools<80.1` and has a report of slower runtime inference. Keep rknn-toolkit2,
@@ -219,7 +219,8 @@ librknnrt and toolkits 2.3.2), with Ember stopped (VALIDATION.md, "On the Orange
 
 - Conversion and the accuracy check passed.
 - Speed: 10.5-11.9 ms instead of 36-44 ms per frame back to back (`benchmark.py`,
-  throughput). Paced at the camera's 15 fps (`benchmark.py --fps 15`), as in Ember and
+  throughput). Paced at 15 fps (`benchmark.py --fps 15`, the camera's rate then; Ember
+  now runs 10 fps, not re-measured), as in Ember and
   as the Monitor shows it, an NPU frame takes longer, because the clocks drop between
   frames (the NPU's governor is `rknpu_ondemand`): median 16.2 ms (p90 23.8) with a
   person in view and 28.5 ms with nobody in view (`--empty`: the detector then runs

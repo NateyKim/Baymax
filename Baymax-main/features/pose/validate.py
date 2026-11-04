@@ -1,7 +1,7 @@
 """Compare the pose port with MediaPipe on the same frames (development tool).
 
     python -m features.pose.validate --task pose_landmarker_full.task --onnx-dir .models/pose_npu \
-        clip1.webm clip2.webm ... [--fps 15] [--seconds 60] [--falls clip.webm ...] [--json out.json]
+        clip1.webm clip2.webm ... [--fps 10] [--seconds 60] [--falls clip.webm ...] [--json out.json]
 
 Each clip is centre-cropped to 4:3, resized to 640x480 (the robot camera's format) and
 sampled at --fps with the clip's own timestamps. Three runs see the frames:
@@ -36,7 +36,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 KEY_LANDMARKS = (0, 2, 5, 11, 12, 23, 24)
-FALL_SETTINGS = dict(angle_threshold=60.0, ang_vel_threshold=25.0, hip_vel_threshold=0.12, history_window=8,
+FALL_SETTINGS = dict(angle_threshold=60.0, ang_vel_threshold=25.0, hip_vel_threshold=0.12,
+                     history_window=6,          # realtime_gemini_10.py FALL_HISTORY_FRAMES (10 fps)
                      confirmation_frames=2, cooldown_seconds=3.0, stay_down_s=2.0)   # realtime_gemini_10.py
 RUNS = ("mediapipe", "port", "baseline")
 
@@ -197,7 +198,7 @@ def main(argv=None):
     parser.add_argument("clips", nargs="*")
     parser.add_argument("--task", required=True)
     parser.add_argument("--onnx-dir", required=True)
-    parser.add_argument("--fps", type=float, default=15.0)
+    parser.add_argument("--fps", type=float, default=10.0)   # the camera thread's FALL_DETECTION_FPS
     parser.add_argument("--seconds", type=float, default=60.0)
     parser.add_argument("--falls", nargs="*", default=[], help="clips with an upright person for synthetic falls")
     parser.add_argument("--fall-starts", default="0,25", help="seconds into each --falls clip to start from")

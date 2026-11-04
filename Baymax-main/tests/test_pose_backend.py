@@ -779,6 +779,36 @@ class RuntimeWiringTests(unittest.TestCase):
                 convert_rknn.read_task(task)
 
 
+class ToolSettingsTests(unittest.TestCase):
+    def test_validate_judges_falls_with_the_runtimes_settings(self):
+        from features.pose import validate
+        source = (ROOT / "realtime_gemini_10.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        constants = {node.targets[0].id: ast.literal_eval(node.value) for node in tree.body
+                     if isinstance(node, ast.Assign) and len(node.targets) == 1
+                     and isinstance(node.targets[0], ast.Name) and node.targets[0].id.startswith("FALL_")
+                     and isinstance(node.value, ast.Constant)}
+        expected = dict(angle_threshold=constants["FALL_ANGLE_THRESHOLD"],
+                        ang_vel_threshold=constants["FALL_ANG_VEL_THRESHOLD"],
+                        hip_vel_threshold=constants["FALL_HIP_VEL_THRESHOLD"],
+                        history_window=constants["FALL_HISTORY_FRAMES"],
+                        confirmation_frames=constants["FALL_CONFIRMATION_FRAMES"],
+                        cooldown_seconds=constants["FALL_COOLDOWN_SECONDS"],
+                        stay_down_s=constants["FALL_STAY_DOWN_SECONDS"])
+        self.assertEqual(validate.FALL_SETTINGS, expected)
+        self.assertEqual(constants["FALL_DETECTION_FPS"], 10)
+        # validate.py's --fps default is the camera thread's rate (stop main() right after parsing).
+        import argparse
+        parsed = {}
+        real = argparse.ArgumentParser.parse_args
+        def stop_after_parsing(parser, *args, **kwargs):
+            parsed.update(vars(real(parser, *args, **kwargs)))
+            raise SystemExit(0)
+        with patch.object(argparse.ArgumentParser, "parse_args", stop_after_parsing), self.assertRaises(SystemExit):
+            validate.main(["--task", "t", "--onnx-dir", "d"])
+        self.assertEqual(parsed["fps"], constants["FALL_DETECTION_FPS"])
+
+
 class BenchmarkTests(unittest.TestCase):
     def test_paced_runs_sleep_to_each_frame_slot_like_the_camera_thread(self):
         from features.pose import benchmark

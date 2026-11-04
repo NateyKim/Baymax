@@ -1,5 +1,13 @@
 # Pose port validation (ONNX Runtime on macOS; the NPU on the Orange Pi)
 
+> **Re-measure before relying on these numbers.** Everything below was measured
+> in-process (the backend in the measuring process, before pose moved to
+> `features/vision_process.py`'s child), at 15 fps, with the full model, and with fall
+> decisions at `history_window=8`. Ember now runs pose in that child at 10 fps with
+> `history_window=6` (`FALL_HISTORY_FRAMES`), MediaPipe uses `camera.pose_model` (lite by
+> default) and the NPU the checked full model. `validate.py` and `benchmark.py` now default
+> to or document those settings (`--fps 10`); the numbers below are kept as measured.
+
 Does `features/pose` (the code path the NPU backend runs) behave like MediaPipe's
 PoseLandmarker? Everything up to "On the Orange Pi (NPU)" is the port on ONNX Runtime
 (FP32) on a Mac: run 2026-10-27 on an Apple M1 (macOS 26.5.2, Python 3.12.13,

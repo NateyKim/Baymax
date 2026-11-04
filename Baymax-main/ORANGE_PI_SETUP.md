@@ -149,7 +149,7 @@ model: both are harmless (the check and the models are fine).
    board every real clip tried missed them, which keeps Ember on the CPU (a plain
    `check` restores the NPU). To see how the NPU does on your own footage, compare it
    with MediaPipe instead (Ember stopped; the clip stays on the board):
-   `.venv/bin/python -m features.pose.validate --engine npu --task pose_landmarker_full.task --onnx-dir .models/pose_npu --fps 15 my_clip.mp4`.
+   `.venv/bin/python -m features.pose.validate --engine npu --task pose_landmarker_full.task --onnx-dir .models/pose_npu --fps 10 my_clip.mp4`.
    A check that fails with `error during the check: RuntimeError: init_runtime(...)
    returned -1` usually means the NPU device could not be opened: see the access check
    in step 1 (librknnrt may print `failed to open rknpu module, need to insmod rknpu
@@ -158,7 +158,8 @@ model: both are harmless (the check and the models are fine).
    `.venv/bin/python features/pose/benchmark.py` prints milliseconds and process CPU
    per frame for MediaPipe on the CPU and for the NPU, and how close their landmarks
    are. By default frames run back to back (throughput: about 11 ms on the NPU here);
-   `--fps 15` paces them like Ember, where an NPU frame takes longer (measured here:
+   `--fps 10` paces them like Ember's camera thread, where an NPU frame takes longer
+   (measured here at `--fps 15`, Ember's rate before it moved to 10 fps:
    median 16.2 ms with a person in view, 28.5 ms with nobody in view, `--empty`, against
    about 40-44 ms for MediaPipe) and process CPU is 12-20% of a core instead of 70-77%.
    Process CPU counts every thread while each frame's pose runs, not between frames.
