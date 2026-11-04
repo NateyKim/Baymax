@@ -346,6 +346,31 @@ class CreateBackendTests(unittest.TestCase):
         self.assertFalse(models.task_matches_pinned(task))
         self.assertIsNone(models.task_matches_pinned(Path(self.temp.name) / "missing.task"))
         self.assertIsNone(backend.weights_warning(SimpleNamespace(base_options=SimpleNamespace(model_asset_path=None))))
+        # The default lite .task (the CPU fallback) is a different model by choice: no warning.
+        lite = Path(self.temp.name) / "pose_landmarker_lite.task"
+        lite.write_bytes(task.read_bytes())
+        self.assertIsNone(backend.weights_warning(model_path=str(lite)))
+        self.assertIsNotNone(backend.weights_warning(model_path=str(task)))
+
+    def test_child_pose_without_the_npu_never_probes(self):
+        probe = Mock()
+        cpu = SimpleNamespace(name=backend.CPU_NAME, device="CPU", close=Mock(),
+                              detect=Mock(side_effect=lambda frame, ms: ms))
+        with patch.dict(os.environ, {"BAYMAX_POSE_BACKEND": "npu"}), \
+                patch.object(backend, "npu_unavailable_reason", probe), patch("builtins.print"):
+            pose = backend.ChildPose(None, allow_npu=False, cpu_factory=lambda: cpu)
+        probe.assert_not_called()
+        self.assertEqual((pose.name, pose.device), (backend.CPU_NAME, "CPU"))
+        stamps = [pose.detect("frame") for _ in range(3)]
+        self.assertEqual(stamps, sorted(set(stamps)))           # strictly increasing ms
+        pose.close()
+        cpu.close.assert_called_once()
+
+    def test_child_pose_factory_pickles_for_the_vision_process(self):
+        import pickle
+        factory = pickle.loads(pickle.dumps(functools.partial(backend.ChildPose, "x.task", allow_npu=False)))
+        self.assertIs(factory.func, backend.ChildPose)
+        self.assertEqual((factory.args, factory.keywords), (("x.task",), {"allow_npu": False}))
 
     def test_onnx_choice_opens_the_port_without_probing(self):
         write_models(self.temp.name)
@@ -701,7 +726,11 @@ class RuntimeWiringTests(unittest.TestCase):
         loop = source[start:source.index("\n# ───", start)]
         self.assertIn("landmarks = landmarker.detect(frame)", loop)
         self.assertIn("fall_worker.share(landmarks", loop)
+        self.assertIn("device=landmarker.device", loop)
         self.assertIn("shared_pose=POSE_TRACKING_ENABLED", loop)
+        self.assertIn("_open_pose(force_cpu=True)", loop)       # a dead pose child restarts on the CPU
+        self.assertIn("Remote(partial(ChildPose, _POSE_MODEL_PATH", source)
+        self.assertIn('allow_npu=not force_cpu and _POSE_MODEL != "heavy"', source)
         # Pose never runs in Ember's own process (it held the GIL there): no MediaPipe
         # import and no in-process backend.
         self.assertNotIn("import mediapipe", source)

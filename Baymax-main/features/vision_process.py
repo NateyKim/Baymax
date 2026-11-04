@@ -1,12 +1,18 @@
-"""Run a camera model (MediaPipe pose or face landmarks) in its own process.
+"""Run a camera model (pose or face landmarks) in its own process.
 
 In Ember's main process MediaPipe inference held Python's GIL, so the microphone
 callback and the Gemini connection waited behind every frame: mic overflows and
 replies up to a minute late on the Orange Pi. A child process has its own GIL and
 cores. Only frames go in and plain landmark tuples come back over its pipes.
 
+The core camera thread's pose child runs features.pose.backend.ChildPose: on an
+Orange Pi 5 (RK3588) that passed the NPU check it drives the NPU (RKNN) from here,
+else MediaPipe on the CPU. A crash in the NPU runtime ends this child, not Ember.
+
     model = Remote(FaceLandmarks)      # any picklable factory with .detect(frame)
     landmarks = model.detect(frame)    # list[Point] or None, as the local model
+    model.device                       # the model's .device after its last frame
+                                       # ("NPU"/"CPU"), or None if it has none
 
 Run as `python -m features.vision_process`; Remote starts it, nothing else should.
 """
@@ -36,7 +42,7 @@ class Remote:
         self.child = subprocess.Popen([sys.executable, "-m", "features.vision_process"], cwd=ROOT,
                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         try:
-            self._call(factory)
+            self.device = self._call(factory)
         except Exception:
             self.close()
             raise
@@ -54,7 +60,8 @@ class Remote:
         return value
 
     def detect(self, frame):
-        return self._call(frame)
+        landmarks, self.device = self._call(frame)
+        return landmarks
 
     def close(self):
         try:
@@ -86,16 +93,25 @@ def main():
     except Exception as error:
         reply("error", f"{type(error).__name__}: {error}")
         return
-    reply("ok", None)
-    while True:
+    reply("ok", getattr(model, "device", None))
+    try:
+        while True:
+            try:
+                frame = pickle.load(requests)
+            except EOFError:
+                return
+            try:
+                landmarks = points(model.detect(frame))
+                # Read after detect: an NPU failure switches to the CPU inside it.
+                reply("ok", (landmarks, getattr(model, "device", None)))
+            except Exception as error:
+                reply("error", f"{type(error).__name__}: {error}")
+    finally:
         try:
-            frame = pickle.load(requests)
-        except EOFError:
-            return
-        try:
-            reply("ok", points(model.detect(frame)))
-        except Exception as error:
-            reply("error", f"{type(error).__name__}: {error}")
+            if hasattr(model, "close"):
+                model.close()  # e.g. release the NPU (RKNN) cleanly
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

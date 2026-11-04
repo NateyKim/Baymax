@@ -40,7 +40,6 @@ import sys
 import time
 import threading
 import collections
-import contextlib
 import urllib.request
 import uuid
 import queue
@@ -54,7 +53,7 @@ import numpy as np
 from google import genai
 from google.genai import types
 import runtime_monitor as monitor
-from features.toolkits.fall_detection import worker as fall_worker, remote_pose
+from features.toolkits.fall_detection import worker as fall_worker
 from dotenv import load_dotenv
 from semantic_embedder import SemanticEmbedder, download_model, missing_packages, model_present
 
@@ -136,6 +135,21 @@ def _ensure_pose_model():
         print(f"[FALL] Downloading pose landmarker model → {_POSE_MODEL_PATH} (~12 MB) ...")
         urllib.request.urlretrieve(_POSE_MODEL_URL, _POSE_MODEL_PATH)
         print("[FALL] Model downloaded.")
+
+def _open_pose(force_cpu=False):
+    """Pose in its own process (features/vision_process.py): in Ember's process it held the
+    GIL and starved the mic and Gemini I/O. The RK3588 NPU (checked full model) when ready
+    and camera.pose_model is lite/full, else MediaPipe with camera.pose_model; heavy and
+    force_cpu always use MediaPipe on the CPU. None: video only."""
+    from functools import partial
+    from features.vision_process import Remote
+    from features.pose.backend import ChildPose
+    try:
+        return Remote(partial(ChildPose, _POSE_MODEL_PATH,
+                              allow_npu=not force_cpu and _POSE_MODEL != "heavy"))
+    except Exception as error:
+        print(f"[CAM] Pose unavailable ({error}); video only, no fall detection or face presence.", flush=True)
+        return None
 
 # Configuration
 # The USB speaker (Jieli Technology "UACDemoV1.0") is not exposed as its own
@@ -1052,10 +1066,12 @@ def _update_face_visibility(landmarks):
 
 # ─── Fall Detection Thread ──────────────────────────────────────────────────
 def _fall_detection_thread():
-    """Runs in a dedicated thread.  Captures camera frames, runs MediaPipe Pose,
-    draws visual overlays and shares frames with the Gemini video sender and the
-    MJPEG stream, and runs fall detection.  The pose landmarks are also used for
-    face presence (conversation initiation)."""
+    """Runs in a dedicated thread.  Captures camera frames, has pose run in its own
+    process (_open_pose: the RK3588 NPU or MediaPipe on the CPU), draws visual
+    overlays and shares frames with the Gemini video sender and the MJPEG stream,
+    and runs fall detection.  The pose landmarks are also used for face presence
+    (conversation initiation). If the pose process fails it is restarted once on
+    the CPU; video continues either way."""
     global _latest_frame, _annotated_frame, _annotated_inputs
 
     if POSE_TRACKING_ENABLED:
@@ -1117,99 +1133,116 @@ def _fall_detection_thread():
     fps_history = collections.deque(maxlen=30)
     last_dbg_t = 0.0
 
+    landmarker = None
+    pose_restarts = 0
     try:
-        # Pose inference runs in its own process: in this one it held the GIL and
+        # Pose runs in its own process (_open_pose): in this one it held the GIL and
         # starved the mic callback and Gemini I/O (overflows, minute-late replies).
-        pose = remote_pose(_POSE_MODEL_PATH) if POSE_TRACKING_ENABLED else contextlib.nullcontext()
-        with pose as landmarker:
-            while not _shutdown_event.is_set():
-                t0 = time.monotonic()
+        landmarker = _open_pose() if POSE_TRACKING_ENABLED else None
+        while not _shutdown_event.is_set():
+            t0 = time.monotonic()
 
-                ret, frame = cap.read()
-                if not ret:
-                    time.sleep(0.1)
-                    continue
+            ret, frame = cap.read()
+            if not ret:
+                time.sleep(0.1)
+                continue
 
-                # Share raw frame for Gemini video sender
-                with _latest_frame_lock:
-                    _latest_frame = frame
-                fall_worker.submit(frame)
+            # Share raw frame for Gemini video sender
+            with _latest_frame_lock:
+                _latest_frame = frame
+            fall_worker.submit(frame)
 
-                # Run pose detection
-                landmarks = None
-                if landmarker is not None:
-                    pose_t0 = time.monotonic()
+            # Run pose detection
+            landmarks = None
+            if landmarker is not None:
+                pose_t0 = time.monotonic()
+                try:
                     landmarks = landmarker.detect(frame)
+                except RuntimeError as error:  # vision process died/hung up or its model raised
+                    landmarker.close()
+                    landmarker = None
+                    if not pose_restarts:
+                        pose_restarts = 1
+                        print(f"[CAM] Pose process failed ({error}); restarting it on the CPU.", flush=True)
+                        landmarker = _open_pose(force_cpu=True)
+                    else:
+                        print(f"[CAM] Pose process failed again ({error}); video only until Ember restarts.",
+                              flush=True)
+                else:
                     fall_worker.share(landmarks, round((time.monotonic() - pose_t0) * 1000, 1),
-                                      device=getattr(landmarker, "device", None))
+                                      device=landmarker.device)
 
-                # Share face-presence signal with the initiation monitor
-                _update_face_visibility(landmarks)
+            # Share face-presence signal with the initiation monitor
+            _update_face_visibility(landmarks)
 
-                result = fall_detector.update(landmarks) if fall_detector else no_fall
-                if result["trunk_angle"] is not None:
-                    angle_history.append(result["trunk_angle"])
-                    a = result["trunk_angle"]
-                    av = result["angular_vel"]
-                    hv = result["hip_descent_vel"]
-                    # Velocities are None until the detector has two frames of
-                    # history; formatting None killed the whole camera thread.
-                    # Rate-limited: at 15 fps a person leaning past 30° would
-                    # otherwise log every frame.
-                    if (a > 30 and av is not None and hv is not None
-                            and t0 - last_dbg_t >= FALL_DBG_INTERVAL_S):
-                        last_dbg_t = t0
-                        print(
-                            f"[FALL DBG] angle={a:.1f}° "
-                            f"ang_vel={av:.1f}°/s "
-                            f"hip_vel={hv:.2f}/s "
-                            f"streak={fall_detector._suspicious_streak}",
-                            flush=True,
-                        )
-
-                # FPS
-                now = time.monotonic()
-                fps_history.append(1.0 / max(now - prev_t, 1e-6))
-                prev_t = now
-
-                # The annotated picture is only for the dashboard's live view
-                # (7-20 ms of CPU a frame): draw it only while someone watches.
-                with _annotated_frame_lock:
-                    watched = _mjpeg_viewers > 0
-                    if not watched:                  # a new viewer draws it from these
-                        _annotated_frame = None
-                        _annotated_inputs = (frame, landmarks, result,
-                                             tuple(fps_history), tuple(angle_history))
-                if watched:
-                    viz = _draw_annotated(frame, landmarks, result, fps_history, angle_history)
-                    # Share annotated frame for MJPEG stream
-                    with _annotated_frame_lock:
-                        _annotated_frame = viz
-
-                if result["fall_detected"]:
+            result = fall_detector.update(landmarks) if fall_detector else no_fall
+            if result["trunk_angle"] is not None:
+                angle_history.append(result["trunk_angle"])
+                a = result["trunk_angle"]
+                av = result["angular_vel"]
+                hv = result["hip_descent_vel"]
+                # Velocities are None until the detector has two frames of
+                # history; formatting None killed the whole camera thread.
+                # Rate-limited: at 15 fps a person leaning past 30° would
+                # otherwise log every frame.
+                if (a > 30 and av is not None and hv is not None
+                        and t0 - last_dbg_t >= FALL_DBG_INTERVAL_S):
+                    last_dbg_t = t0
                     print(
-                        f"[FALL] *** FALL DETECTED *** "
-                        f"angle={result['trunk_angle']:.1f}° "
-                        f"ang_vel={result['angular_vel']:.1f}°/s "
-                        f"hip_vel={result['hip_descent_vel']:.2f}/s",
+                        f"[FALL DBG] angle={a:.1f}° "
+                        f"ang_vel={av:.1f}°/s "
+                        f"hip_vel={hv:.2f}/s "
+                        f"streak={fall_detector._suspicious_streak}",
                         flush=True,
                     )
-                    _fall_detected_event.set()
-                    monitor.notify('fall_alert')  # surprised eyes
-                    _notify_webapp("/api/fall", {
-                        "trunk_angle": result["trunk_angle"],
-                        "angular_vel": result["angular_vel"],
-                        "hip_descent_vel": result["hip_descent_vel"],
-                    })
 
-                # Throttle to target FPS
-                elapsed = time.monotonic() - t0
-                sleep_time = frame_interval - elapsed
-                if sleep_time > 0:
-                    time.sleep(sleep_time)
+            # FPS
+            now = time.monotonic()
+            fps_history.append(1.0 / max(now - prev_t, 1e-6))
+            prev_t = now
+
+            # The annotated picture is only for the dashboard's live view
+            # (7-20 ms of CPU a frame): draw it only while someone watches.
+            with _annotated_frame_lock:
+                watched = _mjpeg_viewers > 0
+                if not watched:                  # a new viewer draws it from these
+                    _annotated_frame = None
+                    _annotated_inputs = (frame, landmarks, result,
+                                         tuple(fps_history), tuple(angle_history))
+            if watched:
+                viz = _draw_annotated(frame, landmarks, result, fps_history, angle_history)
+                # Share annotated frame for MJPEG stream
+                with _annotated_frame_lock:
+                    _annotated_frame = viz
+
+            if result["fall_detected"]:
+                print(
+                    f"[FALL] *** FALL DETECTED *** "
+                    f"angle={result['trunk_angle']:.1f}° "
+                    f"ang_vel={result['angular_vel']:.1f}°/s "
+                    f"hip_vel={result['hip_descent_vel']:.2f}/s",
+                    flush=True,
+                )
+                _fall_detected_event.set()
+                monitor.notify('fall_alert')  # surprised eyes
+                _notify_webapp("/api/fall", {
+                    "trunk_angle": result["trunk_angle"],
+                    "angular_vel": result["angular_vel"],
+                    "hip_descent_vel": result["hip_descent_vel"],
+                })
+
+            # Throttle to target FPS
+            elapsed = time.monotonic() - t0
+            sleep_time = frame_interval - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
     except Exception as e:
         print(f"[FALL] Fall detection thread error: {e}")
     finally:
+        if landmarker is not None:
+            landmarker.close()
+        with _latest_frame_lock:
+            _latest_frame = None  # Gemini gets no frozen picture once the camera stops.
         cap.release()
         fall_worker.stop()
         print("[FALL] Fall detection thread stopped.")

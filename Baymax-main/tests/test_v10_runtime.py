@@ -248,5 +248,115 @@ class LiveViewTests(unittest.TestCase):
         self.assertEqual(ns["_mjpeg_viewers"], 0)
 
 
+class PoseProcessRestartTests(unittest.TestCase):
+    """The camera thread with a fake camera and fake pose children (_open_pose): a pose
+    child that dies is restarted once on the CPU, and video never stops."""
+
+    class Dying:
+        device = "NPU"
+        closed = False
+
+        def detect(self, frame):
+            raise RuntimeError("vision process stopped (exited)")
+
+        def close(self):
+            self.closed = True
+
+    class Working:
+        device = "CPU"
+        closed = False
+
+        def detect(self, frame):
+            return ["pose of " + frame]
+
+        def close(self):
+            self.closed = True
+
+    def run_thread(self, children, frames=5):
+        import collections
+        shutdown = threading.Event()
+
+        class Capture:
+            reads = 0
+
+            def isOpened(self):
+                return True
+
+            def read(self):
+                Capture.reads += 1
+                if Capture.reads > frames:          # the first read is the camera probe
+                    shutdown.set()
+                return True, f"frame{Capture.reads}"
+
+            def set(self, *args):
+                pass
+
+            def release(self):
+                pass
+
+        ns = {}
+        latest, faces, opened = [], [], []
+
+        class FrameLock:                            # records each _latest_frame the thread sets
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                latest.append(ns["_latest_frame"])
+
+        def open_pose(force_cpu=False):
+            opened.append(force_cpu)
+            return children.pop(0) if children else None
+
+        ns.update({
+            "os": os, "time": time, "collections": collections, "CAMERA_INDICES": [0],
+            "cv2": SimpleNamespace(VideoCapture=lambda index: Capture(), CAP_PROP_FRAME_WIDTH=3,
+                                   CAP_PROP_FRAME_HEIGHT=4),
+            "POSE_TRACKING_ENABLED": True, "FALL_DETECTION_ENABLED": False, "FallDetector": Mock(),
+            "_ensure_pose_model": Mock(), "_open_pose": open_pose, "fall_worker": Mock(),
+            "FALL_DETECTION_FPS": 1000, "FALL_ANGLE_THRESHOLD": 60.0, "FALL_ANG_VEL_THRESHOLD": 1.0,
+            "FALL_HIP_VEL_THRESHOLD": 1.0, "FALL_HISTORY_FRAMES": 6, "FALL_CONFIRMATION_FRAMES": 2,
+            "FALL_COOLDOWN_SECONDS": 30.0, "FALL_STAY_DOWN_SECONDS": 2.0, "FALL_DBG_INTERVAL_S": 1.0,
+            "_shutdown_event": shutdown, "_latest_frame_lock": FrameLock(), "_latest_frame": None,
+            "_update_face_visibility": faces.append, "_annotated_frame_lock": threading.Lock(),
+            "_annotated_frame": None, "_annotated_inputs": None, "_mjpeg_viewers": 0,
+            "_draw_annotated": Mock(), "_fall_detected_event": threading.Event(), "monitor": Mock(),
+            "_notify_webapp": Mock(),
+        })
+        thread = load_function("_fall_detection_thread", ns)
+        with patch.dict(os.environ, {"BAYMAX_HARDWARE_PROFILE": "test"}), patch("builtins.print") as printed:
+            thread()
+        logged = " ".join(str(c.args[0]) for c in printed.call_args_list if c.args)
+        return ns, latest, faces, opened, logged
+
+    def test_a_dead_pose_process_restarts_once_on_the_cpu_and_video_continues(self):
+        dying, working = self.Dying(), self.Working()
+        ns, latest, faces, opened, logged = self.run_thread([dying, working])
+        self.assertEqual(opened, [False, True])     # NPU allowed first, then forced to the CPU
+        self.assertIn("Pose process failed (vision process stopped (exited)); restarting it on the CPU.", logged)
+        self.assertEqual(latest, ["frame2", "frame3", "frame4", "frame5", "frame6", None])  # None: stopped
+        self.assertEqual(faces, [None, ["pose of frame3"], ["pose of frame4"], ["pose of frame5"],
+                                 ["pose of frame6"]])
+        self.assertEqual({c.kwargs["device"] for c in ns["fall_worker"].share.call_args_list}, {"CPU"})
+        self.assertTrue(dying.closed and working.closed)
+        ns["fall_worker"].stop.assert_called_once()
+
+    def test_a_second_failure_leaves_video_only(self):
+        first, second = self.Dying(), self.Dying()
+        ns, latest, faces, opened, logged = self.run_thread([first, second])
+        self.assertEqual(opened, [False, True])     # restarted once, never again
+        self.assertIn("Pose process failed again (vision process stopped (exited)); video only", logged)
+        self.assertEqual(latest[:-1], ["frame2", "frame3", "frame4", "frame5", "frame6"])
+        self.assertEqual(faces, [None] * 5)
+        ns["fall_worker"].share.assert_not_called()
+        self.assertTrue(first.closed and second.closed)
+
+    def test_pose_that_cannot_start_leaves_video_only(self):
+        ns, latest, faces, opened, logged = self.run_thread([])   # _open_pose returned None
+        self.assertEqual(opened, [False])
+        self.assertEqual(latest[:-1], ["frame2", "frame3", "frame4", "frame5", "frame6"])
+        self.assertEqual(faces, [None] * 5)
+
+
 if __name__ == "__main__":
     unittest.main()

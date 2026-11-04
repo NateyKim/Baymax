@@ -1,10 +1,23 @@
 """Choose the core camera thread's pose backend.
 
-    pose = create_pose_backend(mediapipe_options=options)
+realtime_gemini_10.py runs it in features/vision_process.py's child process, never in
+Ember's own (pose there held the GIL and starved the mic and Gemini I/O):
+
+    pose = Remote(partial(ChildPose, task_path, allow_npu=True))
+    landmarks = pose.detect(frame_bgr)                 # None or 33 Points
+    pose.device  -> "NPU" / "CPU" (read after each frame: the NPU can fail over)
+    pose.close()
+
+The backend itself (in that child, and in benchmark.py and validate.py):
+
+    pose = create_pose_backend(model_path=task_path)   # or mediapipe_options=options
     landmarks = pose.detect(frame_bgr, timestamp_ms)   # None or 33 landmarks
     pose.name    -> "NPU (RK3588)" / "CPU (MediaPipe)" / "CPU (ONNX Runtime)"
     pose.device  -> "NPU" / "CPU"
     pose.close()
+
+The NPU always runs the converted, checked pose_landmarker_full models; task_path (the
+runtime's camera.pose_model .task, lite by default) is what MediaPipe runs on the CPU.
 
 BAYMAX_POSE_BACKEND=auto (default) uses the RK3588 NPU only when all of these hold:
 Linux aarch64; 'rockchip,rk3588' in /proc/device-tree/compatible; rknn-toolkit-lite2
@@ -25,6 +38,7 @@ import os
 from pathlib import Path
 import platform
 import sys
+import time
 import traceback
 
 from features.pose import models
@@ -277,11 +291,16 @@ def _warm_up(engine):
 
 
 def weights_warning(mediapipe_options=None, model_path=None):
-    """A warning when the runtime's .task (MediaPipe, the fallback) holds other weights than
-    the ones the converted models were made from (e.g. Google changed 'latest')."""
+    """A warning when the runtime's full .task (MediaPipe, the fallback) holds other weights
+    than the ones the converted models were made from (e.g. Google changed 'latest').
+    None for a lite or heavy .task, which is a different model by choice."""
     try:
         path = model_path or getattr(getattr(mediapipe_options, "base_options", None), "model_asset_path", None)
-        if not path or models.task_matches_pinned(path) is not False:
+        # Only a full .task can match: lite or heavy is a different network on purpose
+        # (the NPU always runs the checked full models; the lite .task is the CPU fallback).
+        if not path or not Path(path).name.startswith("pose_landmarker_full"):
+            return None
+        if models.task_matches_pinned(path) is not False:
             return None
     except Exception:
         return None
@@ -352,6 +371,32 @@ def create_pose_backend(mediapipe_options=None, model_path=None, env=None, log=_
                 return FallbackBackend(backend, cpu_factory, log)
     log(f"Pose backend: {CPU_NAME}. NPU skipped: {reason}.")
     return cpu_factory()
+
+
+class ChildPose:
+    """The camera thread's pose backend, built inside features/vision_process.py's child:
+    Remote(partial(ChildPose, task_path, allow_npu=...)). One-argument detect(frame) like
+    fall_detection.CpuPose; the strictly increasing ms timestamps are made here.
+
+    allow_npu=False (camera.pose_model heavy, or a restart after the child died) forces
+    MediaPipe on the CPU without probing the NPU."""
+
+    def __init__(self, model_path, allow_npu=True, cpu_factory=None):
+        env = dict(os.environ)
+        if not allow_npu:
+            env[ENV_BACKEND] = "cpu"
+        self.backend = create_pose_backend(model_path=model_path, env=env, cpu_factory=cpu_factory)
+        self.timestamp = -1
+
+    name = property(lambda self: self.backend.name)
+    device = property(lambda self: self.backend.device)
+
+    def detect(self, frame_bgr):
+        self.timestamp = max(self.timestamp + 1, int(time.monotonic() * 1000))
+        return self.backend.detect(frame_bgr, self.timestamp)
+
+    def close(self):
+        self.backend.close()
 
 
 def _close_quietly(backend):
