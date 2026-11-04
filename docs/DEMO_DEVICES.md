@@ -4,13 +4,13 @@
 |---|---|---|
 | SoC / CPU | Allwinner A733: 2x Cortex-A76 + 6x Cortex-A55, ARM64 | Rockchip RK3588: 4x Cortex-A76 + 4x Cortex-A55, ARM64 |
 | OS | DietPi (Debian 13) SD image from [OPI4-Flash](../devops/opi4-flash/README.md), or Debian 13 | Armbian Debian 13, vendor 6.1 kernel for the NPU; desktop for Setup/Monitor |
-| Setup | the SD image, or `Baymax-main/MVP.md` | clickables and `Baymax-main/ORANGE_PI_SETUP.md` |
+| Setup | the SD image, or `Baymax-main/MVP.md` | a git checkout of `release`, clickables and `Baymax-main/ORANGE_PI_SETUP.md` |
 | Dependencies | `requirements-orange-pi.txt` | the same file |
 | NPU for pose | none: MediaPipe on the CPU | optional: the RK3588 NPU after `features/pose`'s conversion and on-board check; MediaPipe on the CPU otherwise |
 | Fast-core pinning, `BAYMAX_CPU_PINNING=auto` | not pinned (unmeasured; `on` tries the 2 A76s) | pinned to cpu4-7 (measured) |
 | Wi-Fi provisioning | the image's preset network; optional setup hotspot installed by hand (`deploy/host`) | the OS's own network setup; no hotspot |
 | Eye connection | external Firmata-compatible Arduino; set its real serial path | the same |
-| Updates | the image's `ember-update` (branch, default `release`) | opt-in `devops/mvp/update.py` (`BAYMAX_UPDATE_BRANCH`, default `release`) |
+| Updates | the image's `ember-update` (branch, default `release`) | opt-in: `devops/mvp/update.py` before each start of the autostart service (git checkout, `install_autostart.py`, `BAYMAX_AUTO_UPDATE=1`; `BAYMAX_UPDATE_BRANCH`, default `release`); otherwise `git pull` by hand |
 
 Both start `Baymax-main/run_mvp.py` -> `run_pc.py` -> `realtime_gemini_10.py` (the
 4 Pro image's service, the autostart service, and **3 - Start Ember** on Linux ARM64) and

@@ -19,12 +19,31 @@ apply to it too. Nothing in this guide has been run on an Orange Pi 4 Pro yet.
 
 On an Orange Pi 5 Max with Armbian Debian 13 (vendor kernel 6.1), `requirements-orange-pi.txt` installed (Praat-Parselmouth and miniaudio build from source, about 30 minutes; memory's packages and rknn-toolkit-lite2 joined the file later; at commit e938983 `pip install -r requirements-orange-pi.txt` added them in 55 s with `pip check` clean) and the offline suite passed (`check_release.py` at commit 61c410e: core 352 tests, 15 of them skipped, 0 failures; toolkit 158, 0 skipped). By the counts the 15 skipped are the 14 git-based updater tests (git was not installed on the board) and the off-RK3588 default test, so the updater's tests have not run on the board yet (**0 - Debian Prerequisites** now installs git: rerun; confirm the skips with a verbose run). Those figures predate this repository's merge (see Pose below). Still to be checked on the board: Ember running live (it has not been started there yet, on the CPU or the NPU: audio, camera, conversation, the live view, the fall toolkit's status; the camera loop's FPS and frame age with the 1-frame camera buffer below; with the NPU: the backend inside Ember end to end), the updater's tests, thermals over a long run, and fall accuracy at home.
 
-1. Extract the complete current branch ZIP into a permanent folder on the Pi.
+1. Get the code as a git checkout of the `release` branch, in a folder you keep: `sudo apt install -y git`, then `git clone --branch release --single-branch https://github.com/JoeKojima/Ember-OrangePi.git ~/Ember-OrangePi`. Automatic updates (below) need this checkout. An extracted ZIP runs the same way but never updates itself.
 2. Open devops/clickables/Linux. On a minimal Debian 13 system, run **0 - Debian Prerequisites** first. It lists system libraries/build tools, asks permission, and uses sudo/pkexec for apt installation. It does not install NPU drivers, replace the kernel or configure an audio server. Ensure XFCE desktop audio and a browser already work.
 3. Open **1 - Setup**. It installs private Python 3.12 and automatically selects requirements-orange-pi.txt for Linux aarch64/arm64. Expect a potentially long native build for Praat-Parselmouth. A resolver pass does not prove that compilation will succeed.
 4. Enter your own Gemini key, select/test mic, speaker and camera, and optionally enable **experimental fall detection (CPU, or NPU on a set-up Orange Pi)**. Save. It is off by default and requires a camera. With camera pose tracking on (the default) it reuses Ember's own pose, which can run on the Orange Pi 5 Max's NPU (below). It adds a second fall detector (one fall can give two check-ins), so leave it off unless you are testing it.
 5. Open **2 - Monitor**, then **3 - Start Ember**. On an Orange Pi (Linux ARM64) it starts `run_mvp.py`, as MVP.md, the autostart service and the 4 Pro image do: the LED eyes (set `BAYMAX_EYES_PORT`; [features/eyes](features/eyes/README.md)) and the MVP defaults (400 ms turn-end silence; interruptions, the wait cue and voice analysis off; 10 s to save memories at stop; values saved in `.env` win). Ember downloads its pose model (`pose_landmarker_lite.task` by default; `camera.pose_model` in `/etc/ember/device.toml` picks lite, full or heavy) on the first camera start. With pose tracking on (the default) the fall toolkit loads no model of its own and the Monitor shows **Running on CPU (core pose)** (or **Running on NPU (core pose)** after the NPU steps below), with actual FPS and inference milliseconds. Only with `camera.pose_tracking = false` does the toolkit's first run download and verify its own model and show **Running on CPU**. Disabled/starting/loading/unavailable/waiting is not a working detector.
 6. Use **4 - Stop Ember**. Test device release and restart; keep your evidence for review.
+
+**Starting at login and updates (optional).** The Orange Pi 5 Max updates itself only
+through the MVP autostart service, as in [MVP.md](MVP.md#automatic-startup):
+
+1. Stop Ember (**4 - Stop Ember**). From the checkout, as the desktop user (no sudo), run
+   `python3 devops/mvp/install_autostart.py`, then `bash devops/mvp/start-session.sh`.
+   `ember-mvp.service` then starts `run_mvp.py` at each desktop login (automatic login
+   is configured separately); do not also click **3 - Start Ember**. Stop it with
+   `systemctl --user stop ember-mvp.service` (for example before the NPU check below).
+2. Add `BAYMAX_AUTO_UPDATE=1` to `Baymax-main/.env` (and `BAYMAX_UPDATE_BRANCH=...` to
+   follow another branch than `release`). Before each service start,
+   `devops/mvp/update.py` fetches the branch, reinstalls `requirements-orange-pi.txt`
+   when it changed, runs `check_release.py`, and rolls back a version that fails or
+   never reaches listening ([devops/mvp](../devops/mvp/README.md)).
+
+On an extracted ZIP every service start logs `[UPDATE] Skipped: git rev-parse HEAD
+failed: ... not a git repository`. Without the service (clickables only) nothing
+updates: run `git pull --ff-only` in the checkout and then **1 - Setup** (it reinstalls
+packages only when the requirements changed).
 
 If XFCE opens `.sh` files in an editor, use its file permissions/execution options to run them in a terminal; executing scripts depends on Thunar settings. The current launcher is not a packaged XFCE desktop application. Localized Desktop-folder layouts, USB/CSI camera drivers, user device permissions and sound-server routing can require OS-specific setup.
 

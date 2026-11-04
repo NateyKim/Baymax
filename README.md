@@ -13,10 +13,10 @@ pending on both boards.
 | SoC / CPU | Allwinner A733: 2x Cortex-A76 + 6x Cortex-A55 | Rockchip RK3588: 4x Cortex-A76 + 4x Cortex-A55 |
 | NPU for pose | none: MediaPipe on the CPU | optional: the RK3588 NPU after the on-board conversion and accuracy check; MediaPipe on the CPU otherwise |
 | OS | DietPi (Debian 13) SD image from [OPI4-Flash](devops/opi4-flash/README.md), or Debian 13 | Armbian Debian 13 with the vendor 6.1 kernel (needed only for the NPU) |
-| Setup | the SD image, or [MVP.md](Baymax-main/MVP.md) | [clickables](devops/clickables/README.md) and [ORANGE_PI_SETUP.md](Baymax-main/ORANGE_PI_SETUP.md) |
+| Setup | the SD image, or [MVP.md](Baymax-main/MVP.md) | a git checkout of `release`, [clickables](devops/clickables/README.md) and [ORANGE_PI_SETUP.md](Baymax-main/ORANGE_PI_SETUP.md) |
 | Wi-Fi setup hotspot | optional, installed by hand ([deploy/host](Baymax-main/deploy/host/README.md); not part of the SD image; untested on a board) | no |
 | Fast-core pinning (`BAYMAX_CPU_PINNING=auto`) | off (unmeasured; `on` tries it) | on (measured) |
-| Updates | the image's `ember-update`, following a branch (default `release`) | opt-in `devops/mvp/update.py` (`BAYMAX_UPDATE_BRANCH`, default `release`) |
+| Updates | the image's `ember-update`, following a branch (default `release`) | opt-in: `devops/mvp/update.py` before each start of the autostart service (needs the git checkout, `install_autostart.py` and `BAYMAX_AUTO_UPDATE=1`; `BAYMAX_UPDATE_BRANCH`, default `release`); otherwise `git pull` by hand |
 
 On both boards pose and face inference run in their own processes
 (`Baymax-main/features/vision_process.py`), pose tracking runs at 10 fps with
