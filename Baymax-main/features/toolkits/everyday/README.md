@@ -44,8 +44,10 @@ encrypted; use normal OS account/file protections. No recordings or capture adde
 ## Notifications and limitations
 
 The existing live-session task hook checks every five seconds, at most five due
-reminders per message. It waits while Ember speaks/thinks/calls a tool, during an
-active audiobook and for three seconds after recent conversation. Spoken alerts
+reminders per message. It waits while Ember speaks/thinks/calls a tool and for
+three seconds after recent conversation. A due reminder pauses an active audiobook,
+radio station or recording first (playback withholds the mic, so the person could
+not answer); a follow-up re-ask waits until playback pauses or stops. Spoken alerts
 need the runtime and Gemini connection; no OS wakeup or offline alarm. Overdue
 reminders remain pending across downtime. Device clock/timezone must be correct;
 timers use persisted wall-clock deadlines, so clock adjustments affect them.

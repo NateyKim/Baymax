@@ -1402,6 +1402,9 @@ async def fall_alert_monitor(session):
             continue
         _fall_detected_event.clear()
         engagement.engage('possible fall')
+        # Radio, recordings and audiobooks withhold the mic from Gemini: pause them so they can answer.
+        from features.toolkits import audiobooks
+        held = audiobooks.hold_for_answer('possible fall')
 
         print("[FALL] Injecting fall alert into Gemini session...", flush=True)
         try:
@@ -1413,7 +1416,7 @@ async def fall_alert_monitor(session):
                             "[FALL ALERT] The camera has detected that the user "
                             "may have just fallen down. Please immediately check "
                             "on them — ask if they are okay and if they need help."
-                        )
+                        ) + held
                     }],
                 },
                 turn_complete=True,

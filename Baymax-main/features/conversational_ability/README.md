@@ -285,7 +285,8 @@ there is no wake word: people talk to Ember without saying its name.
   goodbye and hello. The upstream v8 prompt is unchanged.
 - **Ember still speaks first for safety and for things the person set up:** a
   due reminder or a possible-fall check-in engages Ember again so the person can
-  answer. Eye-contact and startup greetings stay quiet.
+  answer, and pauses any audiobook, radio or recording, which withholds the mic
+  too. Eye-contact and startup greetings stay quiet.
 - **Lifetime:** the state survives Gemini reconnects but not a restart, which
   always starts engaged.
 - **Fallbacks:** without audio cleanup (`BAYMAX_AUDIO_ENHANCEMENT=0`), there is

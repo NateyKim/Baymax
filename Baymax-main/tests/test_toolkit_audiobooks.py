@@ -134,6 +134,25 @@ class AudiobookTests(unittest.TestCase):
         self.assertIsNone(self.player.render(2048, False))
         self.assertEqual(self.player.execute({"action": "status"}), {"status": "stopped"})
 
+    def test_hold_pauses_for_a_check_in_and_names_where(self):
+        # Fall check-ins and due reminders pause playback: it withholds the mic from Gemini.
+        mic = np.full(480, 7, dtype=np.int16)
+        self.assertIsNone(self.player.hold("possible fall"))  # Nothing playing.
+        self.play()
+        self.assertTrue(self.player.gate(mic))
+        where = self.player.hold("possible fall")
+        self.assertEqual(where, "the recording is paused partway through chapter 1 ('Rabbit Hole') of Alice by Carroll")
+        self.assertTrue(self.player.paused)
+        self.assertFalse(self.player.gate(mic))  # Their answer reaches Gemini.
+        self.assertIsNone(self.player.hold("reminder due"))  # Already paused: nothing more to say.
+        self.assertEqual(self.notes, [])  # The caller's own note says it; no separate [AUDIOBOOK] note.
+        with patch.object(audiobooks, "player", self.player):
+            self.player.execute({"action": "resume"})
+            sentence = audiobooks.hold_for_answer("reminder due")
+            self.assertTrue(sentence.startswith(" The recording is paused partway through chapter 1"), sentence)
+            self.assertIn("resume it only if they ask", sentence)
+            self.assertEqual(audiobooks.hold_for_answer("reminder due"), "")
+
     def drain(self, samples):
         def step():
             chunk = self.player.render(4096, False)

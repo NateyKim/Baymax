@@ -115,6 +115,60 @@ class ListenTests(unittest.TestCase):
         with patch.dict("os.environ", {"BAYMAX_LISTEN_CHECK_MIN": "0"}):
             self.assertIsNone(Station(STATION).limit_seconds)  # 0 never checks in.
 
+    def test_fall_check_in_and_due_reminder_pause_endless_radio_so_the_answer_is_heard(self):
+        # With BAYMAX_LISTEN_CHECK_MIN=0 radio plays without end and withholds the mic
+        # from Gemini; only the pause words got through, and reminders waited for it.
+        import asyncio
+        from unittest.mock import AsyncMock
+        import runtime_monitor as monitor
+        from features.toolkits import audiobooks, fall_detection
+        from features.toolkits.everyday import tools
+        mic = np.full(480, 7, dtype=np.int16)
+
+        class Stop:
+            calls = 0
+
+            def is_set(self):
+                self.calls += 1
+                return self.calls > 2
+        with patch.dict("os.environ", {"BAYMAX_LISTEN_CHECK_MIN": "0"}):
+            self.play_radio()
+        self.assertIsNone(self.player.program.limit_seconds)
+        self.assertTrue(self.player.gate(mic))
+        worker = fall_detection.FallWorker()
+        alerts = [{"recorded": 0}]
+        worker.pop_alert = lambda: alerts.pop() if alerts else None
+        fall = AsyncMock()
+        with patch.object(audiobooks, "player", self.player), patch.object(monitor, "event_observer", None):
+            asyncio.run(worker._alerts(fall, Stop()))
+        self.assertTrue(self.player.paused)
+        self.assertFalse(self.player.gate(mic))  # "I fell, I can't get up" reaches Gemini.
+        self.assertIn("Jazz FM (live radio) is paused so they can hear you and answer",
+                      str(fall.send_client_content.call_args))
+
+        self.listen.execute({"action": "resume"})
+        self.assertTrue(wait_for(lambda: len(self.player.buffer) >= 2048))
+        self.assertTrue(self.player.gate(mic))
+        due, later = AsyncMock(), AsyncMock()
+        with patch.object(audiobooks, "player", self.player), patch.object(monitor, "state", "listening"), \
+                patch.object(monitor, "transcripts", []), \
+                patch.object(tools.store, "now", return_value={"now": "09:00"}), \
+                patch.object(tools.store, "delivered"), \
+                patch.dict("os.environ", {"EMBER_EVERYDAY_ENABLED": "1"}):
+            self.assertFalse(tools.available_to_speak())  # Messages and greetings still wait.
+            with patch.object(tools.store, "due", return_value=[]), \
+                    patch.object(tools.store, "followups", return_value=[{"occurrence": "one", "text": "Pills"}]):
+                asyncio.run(tools.notify_due(later))
+            later.send_client_content.assert_not_called()  # A gentle re-ask waits for a pause.
+            self.assertFalse(self.player.paused)
+            with patch.object(tools.store, "due", return_value=[{"id": 1, "occurrence": "one", "text": "Pills"}]):
+                asyncio.run(tools.notify_due(due))
+        self.assertTrue(self.player.paused)
+        self.assertFalse(self.player.gate(mic))
+        text = str(due.send_client_content.call_args)
+        self.assertIn("[DUE_REMINDERS]", text)
+        self.assertIn("Jazz FM (live radio) is paused so they can hear you and answer", text)
+
     def test_station_that_stops_answering_tells_ember(self):
         def dropping(url, rate, cancelled):
             yield np.full(4800, 2000, dtype=np.int16)

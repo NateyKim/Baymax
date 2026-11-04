@@ -167,8 +167,13 @@ what to hear). `pause`, `resume`, `stop`, `next` (recordings), `status` and
   by the uploader.
 - **Check-in:** after `BAYMAX_LISTEN_CHECK_MIN` minutes (default 30; 0 never)
   of radio or recordings, playback pauses and Ember asks whether to keep
-  listening. This way nobody is stuck with a closed mic, and due reminders
-  (which wait for silence) get a chance.
+  listening. This way nobody is stuck with a closed mic.
+- **Fall check-ins and due reminders** don't wait for that: while anything
+  plays, the mic is withheld from Gemini and only the pause words get through,
+  so a possible-fall check-in (built-in v10 or toolkit) and a due reminder first
+  pause the book, station or recording (`audiobooks.hold_for_answer`) and tell
+  Gemini what paused. Reminder follow-ups, family messages and greetings still
+  wait until playback pauses or stops.
 - **Enable/disable:** `BAYMAX_LISTEN_ENABLED=0` removes the tool and its prompt
   section. It is on by default, and needs `BAYMAX_TOOLKIT_ENABLED`. `public_radio`
   still never returns stream URLs to Gemini.

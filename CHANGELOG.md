@@ -44,7 +44,11 @@
   Ember the book stopped instead of "finished". Pause, check-in and station
   notes now follow Gemini's ~10-minute reconnects to the newest session (they
   went to the closed one, so the 30-minute question was never asked; book
-  chapter notes had the same gap). Live robot check pending.
+  chapter notes had the same gap). A possible-fall check-in (built-in v10 or
+  toolkit) or a due reminder now pauses whatever plays first, since playback
+  withholds the mic: the answer used to be dropped, and reminders waited up to
+  30 min (with `BAYMAX_LISTEN_CHECK_MIN=0`, until the radio was stopped).
+  Live robot check pending.
 
 - Brain games, played only when someone asks: word association, twenty
   questions either way, categories, remembering a list, story recall, riddles

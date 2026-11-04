@@ -257,6 +257,18 @@ class Player:
         listener.feed(samples)
         return True
 
+    def hold(self, reason):
+        """Pause whatever plays so Ember can be heard and answered. Returns where it paused, or None."""
+        with self.lock:
+            if not self.playing or self.paused:
+                return None
+            program = self.program
+            where = program.paused_at(self.index)
+            self._pause()
+        print(f"[{program.label}] Paused for {reason}", flush=True)
+        monitor.record(program.kind, f"Paused for {reason}")
+        return where
+
     def wake(self, phrase):
         with self.lock:
             if not self.playing or self.paused:
@@ -407,6 +419,16 @@ player = Player()
 
 def execute(args):
     return player.execute(args)
+
+
+def hold_for_answer(reason):
+    """Pause playback before a fall check-in or due reminder. While something plays
+    the mic is withheld from Gemini (only the pause words get through), so the
+    person could not answer. Returns a sentence for Gemini's note, or ''."""
+    where = player.hold(reason)
+    if not where:
+        return ""
+    return f" {where[0].upper()}{where[1:]} so they can hear you and answer; resume it only if they ask."
 
 
 def register(sources=None, gates=None, tasks=None):
