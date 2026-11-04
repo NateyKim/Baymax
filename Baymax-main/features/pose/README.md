@@ -17,8 +17,9 @@ that child. Inside it `ChildPose` calls `create_pose_backend(model_path=...)` on
 then `detect(frame_bgr, timestamp_ms)` per frame with strictly increasing timestamps
 it makes itself; the camera thread calls `detect(frame)` and gets the landmarks back
 as plain tuples. `allow_npu` is false for `camera.pose_model = "heavy"` (the NPU was
-only checked against the full model) and when the thread restarts a failed child on
-the CPU. On the NPU the checked `pose_landmarker_full` models run whatever .task the
+only checked against the full model) and when the thread starts a child again on the
+CPU, once, after one could not start (a crash while setting up the NPU happens before
+the child's first reply) or died. On the NPU the checked `pose_landmarker_full` models run whatever .task the
 runtime uses for MediaPipe (lite by default).
 Output is `None` or 33 landmarks with MediaPipe's `x, y, z, visibility, presence`
 (same conventions as `NormalizedLandmark`), so `FallDetector`, face presence, the

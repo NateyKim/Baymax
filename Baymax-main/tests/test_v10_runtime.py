@@ -2,7 +2,9 @@
 import asyncio
 import os
 from pathlib import Path
+import sys
 import tempfile
+import textwrap
 import threading
 import time
 from types import SimpleNamespace
@@ -250,7 +252,8 @@ class LiveViewTests(unittest.TestCase):
 
 class PoseProcessRestartTests(unittest.TestCase):
     """The camera thread with a fake camera and fake pose children (_open_pose): a pose
-    child that dies is restarted once on the CPU, and video never stops."""
+    child that cannot start or dies is started again once, on the CPU, and video never
+    stops. A None child is one that could not start (_open_pose returned None)."""
 
     class Dying:
         device = "NPU"
@@ -272,7 +275,7 @@ class PoseProcessRestartTests(unittest.TestCase):
         def close(self):
             self.closed = True
 
-    def run_thread(self, children, frames=5):
+    def run_thread(self, children, frames=5, pose_tracking=True):
         import collections
         shutdown = threading.Event()
 
@@ -306,13 +309,13 @@ class PoseProcessRestartTests(unittest.TestCase):
 
         def open_pose(force_cpu=False):
             opened.append(force_cpu)
-            return children.pop(0) if children else None
+            return children.pop(0) if children else None   # None: could not start
 
         ns.update({
             "os": os, "time": time, "collections": collections, "CAMERA_INDICES": [0],
             "cv2": SimpleNamespace(VideoCapture=lambda index: Capture(), CAP_PROP_FRAME_WIDTH=3,
                                    CAP_PROP_FRAME_HEIGHT=4),
-            "POSE_TRACKING_ENABLED": True, "FALL_DETECTION_ENABLED": False, "FallDetector": Mock(),
+            "POSE_TRACKING_ENABLED": pose_tracking, "FALL_DETECTION_ENABLED": False, "FallDetector": Mock(),
             "_ensure_pose_model": Mock(), "_open_pose": open_pose, "fall_worker": Mock(),
             "FALL_DETECTION_FPS": 1000, "FALL_ANGLE_THRESHOLD": 60.0, "FALL_ANG_VEL_THRESHOLD": 1.0,
             "FALL_HIP_VEL_THRESHOLD": 1.0, "FALL_HISTORY_FRAMES": 6, "FALL_CONFIRMATION_FRAMES": 2,
@@ -351,11 +354,81 @@ class PoseProcessRestartTests(unittest.TestCase):
         ns["fall_worker"].share.assert_not_called()
         self.assertTrue(first.closed and second.closed)
 
-    def test_pose_that_cannot_start_leaves_video_only(self):
-        ns, latest, faces, opened, logged = self.run_thread([])   # _open_pose returned None
-        self.assertEqual(opened, [False])
+    def test_a_pose_process_that_cannot_start_is_started_once_on_the_cpu(self):
+        # E.g. librknnrt crashed the child while it set up the NPU, before its first reply.
+        working = self.Working()
+        ns, latest, faces, opened, logged = self.run_thread([None, working])
+        self.assertEqual(opened, [False, True])     # NPU allowed first, then forced to the CPU
+        self.assertIn("Starting the pose process again, on the CPU.", logged)
+        self.assertNotIn("Pose unavailable", logged)
+        self.assertEqual(latest, ["frame2", "frame3", "frame4", "frame5", "frame6", None])
+        self.assertEqual(faces, [["pose of frame%d" % n] for n in range(2, 7)])  # from the first frame
+        self.assertEqual({c.kwargs["device"] for c in ns["fall_worker"].share.call_args_list}, {"CPU"})
+        self.assertTrue(working.closed)
+
+    def test_the_start_retry_is_the_one_restart(self):
+        dying = self.Dying()                        # the CPU child started, then dies
+        ns, latest, faces, opened, logged = self.run_thread([None, dying])
+        self.assertEqual(opened, [False, True])     # no third process
+        self.assertIn("Pose process failed again (vision process stopped (exited)); video only", logged)
         self.assertEqual(latest[:-1], ["frame2", "frame3", "frame4", "frame5", "frame6"])
         self.assertEqual(faces, [None] * 5)
+        self.assertTrue(dying.closed)
+
+    def test_pose_that_cannot_start_on_the_cpu_either_leaves_video_only(self):
+        ns, latest, faces, opened, logged = self.run_thread([])   # _open_pose returned None twice
+        self.assertEqual(opened, [False, True])
+        self.assertIn("Pose unavailable; video only", logged)
+        self.assertEqual(latest[:-1], ["frame2", "frame3", "frame4", "frame5", "frame6"])
+        self.assertEqual(faces, [None] * 5)
+        ns["fall_worker"].share.assert_not_called()
+
+    def test_pose_tracking_off_starts_no_pose_process(self):
+        ns, latest, faces, opened, logged = self.run_thread([], pose_tracking=False)
+        self.assertEqual(opened, [])
+        self.assertEqual(latest[:-1], ["frame2", "frame3", "frame4", "frame5", "frame6"])
+
+
+class OpenPoseTests(unittest.TestCase):
+    """The real _open_pose and vision process, with a stand-in for ChildPose whose NPU
+    setup kills the process before its first reply, as a librknnrt crash in
+    init_runtime or the warm-up would (Python exceptions there fall back inside it)."""
+
+    FAKE = textwrap.dedent('''
+        import os
+
+        class NpuCrashPose:
+            def __init__(self, model_path, allow_npu=True):
+                if allow_npu:
+                    os._exit(1)
+                self.device = "CPU"
+
+            def detect(self, frame):
+                return None
+    ''')
+
+    def test_a_child_that_dies_setting_up_the_npu_gives_none_and_the_cpu_child_starts(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        Path(directory.name, "fake_npu_crash.py").write_text(self.FAKE)
+        sys.path.insert(0, directory.name)
+        self.addCleanup(sys.path.remove, directory.name)
+        self.addCleanup(sys.modules.pop, "fake_npu_crash", None)
+        import fake_npu_crash
+        open_pose = load_function("_open_pose", {"_POSE_MODEL_PATH": "pose_landmarker_lite.task",
+                                                 "_POSE_MODEL": "lite"})
+        path = os.pathsep.join(filter(None, (directory.name, os.environ.get("PYTHONPATH"))))
+        with patch.dict(os.environ, {"PYTHONPATH": path}), \
+                patch("features.pose.backend.ChildPose", fake_npu_crash.NpuCrashPose), \
+                patch("builtins.print") as printed:
+            self.assertIsNone(open_pose())                      # the camera thread then retries
+            pose = open_pose(force_cpu=True)
+        self.assertIsNotNone(pose)
+        self.addCleanup(pose.close)
+        self.assertEqual(pose.device, "CPU")
+        self.assertIsNone(pose.detect("frame"))
+        self.assertIn("[CAM] Pose process could not start (vision process stopped", printed.call_args_list[0].args[0])
+        self.assertEqual(len(printed.call_args_list), 1)
 
 
 if __name__ == "__main__":

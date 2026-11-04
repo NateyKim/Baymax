@@ -46,10 +46,12 @@ backend and logs it to Ember's log:
   4 Pro, MediaPipe runs the chosen `.task` on the CPU
   (`[POSE] Pose backend: CPU (MediaPipe). NPU skipped: <reason>`).
 - `"heavy"`: always MediaPipe on the CPU (the NPU was only checked against full).
-- If the pose process dies or fails, Ember restarts it once on the CPU
-  (`[CAM] Pose process failed (...); restarting it on the CPU.`); a second failure
-  leaves video only until Ember restarts. Video to Gemini continues throughout. A pose
-  process that hangs without exiting is not detected yet.
+- If the pose process cannot start (for example librknnrt crashes it while it sets up
+  the NPU: `[CAM] Pose process could not start (...)`, then `Starting the pose process
+  again, on the CPU.`) or dies later (`[CAM] Pose process failed (...); restarting it
+  on the CPU.`), Ember starts it again once, on the CPU; a second failure leaves video
+  only until Ember restarts (`[CAM] Pose unavailable; video only ...`). Video to Gemini
+  continues throughout. A pose process that hangs without exiting is not detected yet.
 
 Eye-contact greetings (`BAYMAX_PRESENCE_GREETING=1`, off by default) run face
 landmarks in a second child process the same way. The annotated live view is drawn

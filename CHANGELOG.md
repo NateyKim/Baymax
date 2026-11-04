@@ -13,8 +13,9 @@
     overflows on the 4 Pro) and the Orange Pi 5's backend now runs inside that child
     (`features.pose.backend.ChildPose`): with `camera.pose_model` lite (default) or
     full, a set-up RK3588 runs the checked full model on the NPU, otherwise MediaPipe
-    runs the chosen .task on the CPU; heavy always uses the CPU. A failed or dead pose
-    process is restarted once on the CPU; video continues. The vision process reports
+    runs the chosen .task on the CPU; heavy always uses the CPU. A pose process that
+    cannot start (e.g. librknnrt crashing it during NPU setup) or dies later is started
+    again once, on the CPU; video continues. The vision process reports
     the model's device with every frame, so the fall toolkit shows NPU/CPU correctly.
     A pose process that hangs without exiting is not detected yet.
   - Fast-core pinning: `BAYMAX_CPU_PINNING=auto` (default) pins only on an RK3588,

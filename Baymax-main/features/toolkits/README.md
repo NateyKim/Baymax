@@ -111,8 +111,8 @@ camera stream. Face and pose inference run in a child process
 (`features/vision_process.py`): in Ember's own process MediaPipe held Python's GIL,
 starving the mic callback and Gemini I/O. Only frames go in and landmark tuples
 come out over local pipes; nothing leaves the device. If the face child cannot start,
-eye contact reports unavailable. If the core's pose child cannot start, video
-continues without pose; if it dies, it is restarted once on the CPU. A look counts when the face is turned to the camera, both irises
+eye contact reports unavailable. If the core's pose child cannot start or
+dies, it is started again once, on the CPU; video continues either way. A look counts when the face is turned to the camera, both irises
 are centred, the face is within about 1-1.5 m (detector limit) and it lasts
 ~0.8 s after nobody looked for 30 s. The dashboard timeline shows "Eye contact
 started" and "Eye contact ended" (with why it did or did not greet). It only

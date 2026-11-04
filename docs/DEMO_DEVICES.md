@@ -27,7 +27,8 @@ The same code runs on both boards; the board decides at runtime:
   Ember's GIL) at 10 fps with `camera.pose_model` (lite by default). On an Orange Pi
   5 Max that passed the NPU check, lite or full means the checked full model on the
   NPU; heavy always stays on the CPU. Everywhere else it is MediaPipe on the CPU. A
-  pose process that dies is restarted once on the CPU; video continues either way.
+  pose process that cannot start or dies is started again once, on the CPU; video
+  continues either way.
 - **Pinning:** `auto` pins only on the RK3588. Child processes (pose, face) inherit
   it, which on the 4 Pro would leave Ember and both children on its 2 A76 cores, so
   that is left off until measured.

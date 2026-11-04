@@ -140,7 +140,8 @@ def _open_pose(force_cpu=False):
     """Pose in its own process (features/vision_process.py): in Ember's process it held the
     GIL and starved the mic and Gemini I/O. The RK3588 NPU (checked full model) when ready
     and camera.pose_model is lite/full, else MediaPipe with camera.pose_model; heavy and
-    force_cpu always use MediaPipe on the CPU. None: video only."""
+    force_cpu always use MediaPipe on the CPU. None if the process could not start (the
+    camera thread then tries once on the CPU, or keeps video only)."""
     from functools import partial
     from features.vision_process import Remote
     from features.pose.backend import ChildPose
@@ -148,7 +149,7 @@ def _open_pose(force_cpu=False):
         return Remote(partial(ChildPose, _POSE_MODEL_PATH,
                               allow_npu=not force_cpu and _POSE_MODEL != "heavy"))
     except Exception as error:
-        print(f"[CAM] Pose unavailable ({error}); video only, no fall detection or face presence.", flush=True)
+        print(f"[CAM] Pose process could not start{' on the CPU' if force_cpu else ''} ({error}).", flush=True)
         return None
 
 # Configuration
@@ -1070,8 +1071,8 @@ def _fall_detection_thread():
     process (_open_pose: the RK3588 NPU or MediaPipe on the CPU), draws visual
     overlays and shares frames with the Gemini video sender and the MJPEG stream,
     and runs fall detection.  The pose landmarks are also used for face presence
-    (conversation initiation). If the pose process fails it is restarted once on
-    the CPU; video continues either way."""
+    (conversation initiation). If the pose process cannot start or later fails, it is
+    started again once, on the CPU; video continues either way."""
     global _latest_frame, _annotated_frame, _annotated_inputs
 
     if POSE_TRACKING_ENABLED:
@@ -1134,11 +1135,21 @@ def _fall_detection_thread():
     last_dbg_t = 0.0
 
     landmarker = None
-    pose_restarts = 0
+    pose_restarts = 0          # one restart on the CPU per run, at start or after a failure
+    video_only = "[CAM] Pose unavailable; video only, no fall detection or face presence until Ember restarts."
     try:
         # Pose runs in its own process (_open_pose): in this one it held the GIL and
         # starved the mic callback and Gemini I/O (overflows, minute-late replies).
-        landmarker = _open_pose() if POSE_TRACKING_ENABLED else None
+        if POSE_TRACKING_ENABLED:
+            landmarker = _open_pose()
+            if landmarker is None:
+                # E.g. librknnrt crashed the child while it set up the NPU (before its first
+                # reply): MediaPipe on the CPU never touches RKNN. This is the one restart.
+                pose_restarts = 1
+                print("[CAM] Starting the pose process again, on the CPU.", flush=True)
+                landmarker = _open_pose(force_cpu=True)
+                if landmarker is None:
+                    print(video_only, flush=True)
         while not _shutdown_event.is_set():
             t0 = time.monotonic()
 
@@ -1165,6 +1176,8 @@ def _fall_detection_thread():
                         pose_restarts = 1
                         print(f"[CAM] Pose process failed ({error}); restarting it on the CPU.", flush=True)
                         landmarker = _open_pose(force_cpu=True)
+                        if landmarker is None:
+                            print(video_only, flush=True)
                     else:
                         print(f"[CAM] Pose process failed again ({error}); video only until Ember restarts.",
                               flush=True)
