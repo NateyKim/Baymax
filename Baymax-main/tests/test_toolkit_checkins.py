@@ -22,11 +22,13 @@ class CheckInTests(unittest.TestCase):
         self.up = 0.0
         self.wall = 100000.0
         self.talked = self.wall - 20 * 60          # Talked 20 minutes ago.
+        self.heard = None                          # The person last spoke (None: same as talked).
         self.book = False
         self.asleep = False
         self.ember = CheckIns(path=self.path, now=lambda: self.local, clock=lambda: self.up,
                               wall=lambda: self.wall, last_conversation=lambda: self.talked,
-                              book_playing=lambda: self.book, disengaged=lambda: self.asleep)
+                              book_playing=lambda: self.book, disengaged=lambda: self.asleep,
+                              last_heard=lambda: self.talked if self.heard is None else self.heard)
         self.ember.started = 0.0
         self.up = 30 * 60
         for patcher in (patch.object(monitor, "state", "listening"),
@@ -64,6 +66,35 @@ class CheckInTests(unittest.TestCase):
         self.talked = 0.0                           # Nobody since boot.
         self.assertIsNone(self.ember.due())
 
+    def test_embers_own_speech_is_not_someone_at_home(self):
+        # Unattended reboot at 07:00: the startup hello is the only transcript. At
+        # 08:05 it has been quiet 65 minutes, but nobody has spoken to Ember.
+        self.local = datetime(2026, 11, 2, 8, 5)
+        hello = {"id": 1, "speaker": "ember", "text": "Good morning! I've just restarted.",
+                 "time": self.wall - 65 * 60, "updated_at": self.wall - 65 * 60, "live": False}
+        real = CheckIns(path=self.path, now=lambda: self.local, clock=lambda: self.up, wall=lambda: self.wall,
+                        book_playing=lambda: False, disengaged=lambda: False)
+        real.started = 0.0
+        with patch.object(monitor, "transcripts", [hello]):
+            self.assertIsNone(real.due())
+        # An unanswered 12:30 reminder doesn't make the 14:00 check-in talk to an empty room either.
+        self.local = datetime(2026, 11, 2, 14, 0)
+        self.talked, self.heard = self.wall - 90 * 60, self.wall - 5 * 3600
+        self.assertIsNone(self.ember.due())
+        # The person answered the reminder: someone is home.
+        self.heard = self.talked
+        self.assertEqual(self.ember.due()[0], "afternoon")
+        said = {"id": 2, "speaker": "user", "text": "Morning!", "time": self.wall - 20 * 60,
+                "updated_at": self.wall - 20 * 60, "live": False}
+        self.local = datetime(2026, 11, 2, 9, 30)
+        with patch.object(monitor, "transcripts", [hello, said]):
+            self.assertEqual(real.due()[0], "morning")
+
+    def test_ember_speaking_recently_still_counts_as_not_quiet(self):
+        self.heard = self.wall - 30 * 60            # The person spoke half an hour ago...
+        self.talked = self.wall - 60                # ...and Ember was talking a minute ago.
+        self.assertIsNone(self.ember.due())
+
     def test_not_while_busy_or_reading_a_book(self):
         for state in ("speaking", "thinking", "calling_tool"):
             with patch.object(monitor, "state", state):
@@ -80,7 +111,7 @@ class CheckInTests(unittest.TestCase):
         from features.conversational_ability.engage import engagement
         default = CheckIns(path=self.path, now=lambda: self.local, clock=lambda: self.up,
                            wall=lambda: self.wall, last_conversation=lambda: self.talked,
-                           book_playing=lambda: False)
+                           last_heard=lambda: self.talked, book_playing=lambda: False)
         default.started = 0.0
         with patch.object(engagement, "disengaged", True):
             self.assertIsNone(default.due())
@@ -112,7 +143,7 @@ class CheckInTests(unittest.TestCase):
         self.assertIsNone(self.ember.due())         # Unanswered: not asked again.
         restarted = CheckIns(path=self.path, now=lambda: self.local, clock=lambda: self.up,
                              wall=lambda: self.wall, last_conversation=lambda: self.talked,
-                             book_playing=lambda: False)
+                             last_heard=lambda: self.talked, book_playing=lambda: False)
         restarted.started = 0.0
         self.assertIsNone(restarted.due())
         self.local = datetime(2026, 11, 2, 15, 0)

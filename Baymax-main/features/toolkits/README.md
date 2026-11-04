@@ -247,11 +247,13 @@ it is not repeated.
   - `BAYMAX_CHECKIN_EVENING` (18:00-20:30)
 
   `0` turns a window off.
-- **Quiet and likely not alone.** The last conversation ended at least
-  `BAYMAX_CHECKIN_QUIET_S` (300) ago but no more than `BAYMAX_CHECKIN_AROUND_S`
-  (10800) ago. Recent conversation is the only "someone is home" signal that
-  needs no extra camera work, so an empty room (or nobody since boot) hears
-  nothing.
+- **Quiet and likely not alone.** Nobody, Ember included, has spoken for at
+  least `BAYMAX_CHECKIN_QUIET_S` (300), and the person last spoke no more than
+  `BAYMAX_CHECKIN_AROUND_S` (10800) ago. Recent conversation is the only
+  "someone is home" signal that needs no extra camera work. Only the person's
+  own transcripts count for it, not Ember's (the startup hello after an
+  unattended reboot, an unanswered reminder), so an empty room (or nobody
+  since boot) hears nothing.
 - **Not busy.** Ember isn't speaking, thinking or calling a tool, and no
   audiobook is playing.
 - **Not disengaged.** After "Ember disengage" Gemini hears only silence, so,

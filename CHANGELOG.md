@@ -71,7 +71,9 @@
   day in the evening.
   - At most once per window per day, with no repeat if unanswered.
   - Never within 20 minutes of starting, never as the startup hello, and only
-    when it is quiet and someone talked to Ember in the last 3 hours.
+    when it is quiet and the person spoke to Ember in the last 3 hours. Ember's
+    own speech doesn't count: after an unattended reboot the startup hello made
+    the morning check-in ask an empty room how they slept.
   - Not while Ember is busy, a book plays or Ember is disengaged ("Ember
     disengage"), since the person could not answer.
   - Spoken only; answers are not saved. "Done today" survives restarts in a

@@ -2,9 +2,9 @@
 
 At most once per window per day (morning, afternoon, evening on the device-local
 clock), only after Ember has been running a while (never at boot or as the
-startup hello), only when it is quiet, and only when someone talked to Ember in
-the last few hours, so it does not speak to an empty room. Like greetings, it
-stays quiet while Ember is disengaged ("Ember disengage"). One attempt per
+startup hello), only when it is quiet, and only when the person (not Ember
+itself) spoke in the last few hours, so it does not speak to an empty room.
+Like greetings, it stays quiet while Ember is disengaged ("Ember disengage"). One attempt per
 window: an unanswered check-in is not repeated. Answers are ordinary
 conversation; nothing is saved or sent anywhere. The live session comes through
 `fall_detection.session_tasks`; "done today" is kept in a small local file.
@@ -66,9 +66,16 @@ def _path():
     return root / "toolkit_checkins.json"
 
 
-def _last_conversation():
+def _last_conversation(speaker=None):
     with monitor.lock:
-        return max((t.get("updated_at", t["time"]) for t in monitor.transcripts), default=0.0)
+        return max((t.get("updated_at", t["time"]) for t in monitor.transcripts
+                    if speaker is None or t.get("speaker") == speaker), default=0.0)
+
+
+def _last_heard():
+    """When the person last spoke. Ember's own speech (the startup hello, an
+    unanswered reminder) is no sign that anyone is home."""
+    return _last_conversation("user")
 
 
 def _book_playing():
@@ -90,10 +97,12 @@ def _disengaged():
 
 class CheckIns:
     def __init__(self, path=None, now=datetime.now, clock=time.monotonic, wall=time.time,
-                 last_conversation=_last_conversation, book_playing=_book_playing, disengaged=_disengaged):
+                 last_conversation=_last_conversation, book_playing=_book_playing, disengaged=_disengaged,
+                 last_heard=_last_heard):
         self.path = Path(path) if path else None
         self.now, self.clock, self.wall = now, clock, wall
         self.last_conversation, self.book_playing = last_conversation, book_playing
+        self.last_heard = last_heard
         self.disengaged = disengaged
         self.started = None   # First live session; reconnects keep it, a restart resets it.
         self.sleep = asyncio.sleep
@@ -127,10 +136,12 @@ class CheckIns:
         name = next((n for n, (start, end) in windows().items() if start <= minute < end), None)
         if name is None or name in self.done(now.date().isoformat()):
             return None
-        # Someone is likely around: they talked with Ember in the last few hours,
-        # but not in the last few minutes (do not cut into a conversation or its pause).
+        # Someone is likely around: the person spoke to Ember in the last few hours
+        # (Ember talking to an empty room does not count), but nobody, Ember
+        # included, spoke in the last few minutes (do not cut into a conversation).
         quiet = self.wall() - self.last_conversation()
-        if quiet < _setting("BAYMAX_CHECKIN_QUIET_S", 5 * 60) or quiet > _setting("BAYMAX_CHECKIN_AROUND_S", 3 * 3600):
+        away = self.wall() - self.last_heard()
+        if quiet < _setting("BAYMAX_CHECKIN_QUIET_S", 5 * 60) or away > _setting("BAYMAX_CHECKIN_AROUND_S", 3 * 3600):
             return None
         if self.book_playing() or self.disengaged() or monitor.state in ("speaking", "thinking", "calling_tool"):
             return None
