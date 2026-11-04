@@ -1,5 +1,13 @@
 # MVP (unreleased)
 
+- Brain games, played only when someone asks: word association, twenty
+  questions either way, categories, remembering a list, story recall, riddles
+  and word puzzles. A local `brain_game` tool supplies fresh rounds from word
+  lists (no repeats until a list is used up) and keeps the score; nothing leaves
+  the robot. The prompt keeps it fun and encouraging and never treats it as a
+  memory test. On with Discovery (`EMBER_DISCOVERY_ENABLED=0` removes it). Live
+  check pending.
+
 - "Look closely": the new `look_closely` tool sends Gemini one sharper still
   (full 640x480 capture, JPEG quality 90, instead of the 320x240 quality-50
   frames every 3 s) when someone asks Ember to read or identify something. The
