@@ -1,10 +1,10 @@
 # Discord quick-start messages
 
-Copy each block below as a separate Discord message. These instructions match the development branch, not an approved production deployment.
+Copy each block below as a separate Discord message. These instructions match this repository's `release` branch (JoeKojima/Ember-OrangePi, a working name), not an approved production deployment.
 
 ```text
 **Ember: download and run**
-1. Download the latest ZIP: https://github.com/JoeKojima/Baymax/archive/refs/heads/codex/ember-desktop-dev-tools.zip
+1. Download the latest ZIP: https://github.com/JoeKojima/Ember-OrangePi/archive/refs/heads/release.zip
 2. Extract the ENTIRE ZIP into a permanent folder, e.g. Desktop/Ember. Don't run files inside the ZIP.
 3. Open devops -> clickables -> Windows, macOS or Linux.
 4. Open **1 - Setup** (.cmd on Windows, .command on Mac, .sh on Linux). Wait while it installs private Python 3.12, packages/model and runs checks. Internet is required; your existing Python isn't replaced.
@@ -14,7 +14,7 @@ Optional: enable experimental fall detection in Setup, select a camera, Save and
 
 Later sessions only need Monitor/Start/Stop. Reopen Setup to change devices/key. Don't move the extracted code after setup; rerun Setup if you move it.
 
-Windows installation is tested. Intel Macs now automatically use an experimental compatible dependency profile through the same macOS Setup clickable. Actual Intel/Apple Silicon Mac installations, older macOS versions and Linux hardware remain unverified. Orange Pi 5 Max/Debian 13 has an experimental ARM profile: open Linux/0 - Debian Prerequisites before Setup on minimal installs (asks permission for system packages). Actual Pi installation/performance is unverified. Your OS may ask permission to open scripts/use devices; contact your lead if company policy blocks it.
+Windows installation is tested. Intel Macs now automatically use an experimental compatible dependency profile through the same macOS Setup clickable. Actual Intel/Apple Silicon Mac installations, older macOS versions and Linux hardware remain unverified. Orange Pi 5 Max/4 Pro on Debian 13 use an experimental ARM profile: open Linux/0 - Debian Prerequisites before Setup on minimal installs (asks permission for system packages); a ZIP never updates itself, so for updates use a git checkout (Baymax-main/ORANGE_PI_SETUP.md). Actual Pi installation/performance is unverified. Your OS may ask permission to open scripts/use devices; contact your lead if company policy blocks it.
 
 Ember sends mic/camera data to Gemini when started and records session audio locally. Location/weather uses external services.
 ```

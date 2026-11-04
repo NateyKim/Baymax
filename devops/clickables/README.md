@@ -1,6 +1,6 @@
 # Run Ember with clickables
 
-1. Download the PR branch ZIP and **extract the whole folder** to a location you will keep (for example Desktop/Ember). Do not run inside the ZIP.
+1. Download this repository's `release` branch ZIP and **extract the whole folder** to a location you will keep (for example Desktop/Ember). Do not run inside the ZIP. On an Orange Pi, a git checkout instead lets it update itself ([Pi setup](../../Baymax-main/ORANGE_PI_SETUP.md)).
 2. Open `devops/clickables`, then your OS folder: **Windows**, **macOS**, or **Linux**.
 3. Double-click **1 - Setup**. First use downloads a private Python 3.12 runtime, installs the full requirements and spaCy model, and runs offline checks. Internet access is needed; wait for completion. No preinstalled Python or terminal commands are needed on supported configurations.
 4. Setup creates **Desktop/clickables** shortcuts and opens the local device/key UI. Enter your own Gemini key, select/test your devices, and Save.
