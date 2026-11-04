@@ -31,6 +31,35 @@
   1 fps when no face is in view. Fall detection with the lite model and on-board
   CPU/thermal profiling on the Orange Pi remain pending.
 
+- Add OPI4-Flash: a Linux-hosted Orange Pi 4 Pro SD-image builder and first-boot
+  instructions with configurable PR/Wi-Fi/Gemini key, generated per-image access
+  credentials, checked assets, headless desktop/AnyDesk/status services and staged
+  startup updates. Includes offline configuration, updater, hardware and checksum
+  tests. A fresh-card boot of the reusable package remains pending.
+
+- OPI4-Flash's board updater reuses the installed Python environment when a new
+  commit leaves `Baymax-main/requirements*` and the bootstrap unchanged, so a
+  code-only update takes seconds instead of reinstalling (and on ARM compiling)
+  every package. Changed dependencies still get a fresh environment. Release
+  folders must be kept, since a shared environment lives in an older one.
+
+- OPI4-Flash accepts an optional private `access_password` setting that becomes
+  both the Linux and AnyDesk password on every card built with it; without it,
+  each card still gets separate random passwords.
+
+- OPI4-Flash downloads prebuilt ARM64 wheels for praat-parselmouth 0.4.7 and
+  miniaudio 1.71 from the `opi4-wheels-1` release (checked against `assets.json`),
+  so a new PC no longer compiles them under emulation. Changing wheels no longer
+  rebuilds the package base. The builder's own tests now run from its source
+  folder. A fresh-PC build using the release wheels is pending.
+
+- OPI4-Flash now preinstalls the Debian packages, AnyDesk and the selected
+  release's Python environment while building (ARM64 chroot via
+  qemu-user-static), so first boot no longer downloads them. The package base
+  image and built wheels are cached between cards. Fix a builder crash
+  (`timer_image_directory`) from the permissions fix. A full emulated build and
+  a boot of the preinstalled image remain pending.
+
 - Make the MVP turn-end silence default and invalid-value fallback 400 ms,
   matching the demo timing preference. Saved valid timing overrides still win.
   Document and test that built-in v10 pose tracking and fall detection default

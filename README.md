@@ -7,6 +7,12 @@ engage/disengage, reminders, audiobooks, app integration and built-in fall detec
 Start with [device setup](Baymax-main/MVP.md) and the
 [shared feature contract](docs/DEMO_DEVICES.md). Live device checks remain pending.
 
+## Orange Pi 4 Pro SD image
+
+See [OPI4-Flash](devops/opi4-flash/README.md) for a private SD-image builder with
+three first-boot choices: PR to follow, preconfigured Wi-Fi and Gemini key.
+Builds generate their own device credentials; no personalized images are included.
+
 ## Included Conversational Ability
 
 Responsive listening and turn-taking, layered on #11. See
