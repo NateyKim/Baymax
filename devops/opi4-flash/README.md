@@ -204,22 +204,24 @@ install its older bundle, so check the installed commit before judging a test.
 Automatic updates run on boot. Packages and tests are installed in a separate
 release directory before switching `~/ember-deployment/current`. The existing
 `.env` survives a release update; the original key preset is used only for the
-first release. Memory, reminders and logs live in `~/ember-deployment/data`
-(`BAYMAX_DATA_DIR`, set in the first `.env` of a card built by this builder; the
-updater adds it back if a `.env` lacks it) and downloaded models in
-`~/ember-deployment/shared`, so a new release keeps them.
+first release. Memory, reminders, the voice volume, daily check-ins and logs live in
+`~/ember-deployment/data` (`BAYMAX_DATA_DIR`, set in the first `.env` of a card built
+by this builder; the updater adds it back if a `.env` lacks it) and downloaded models
+in `~/ember-deployment/shared`, so a new release keeps them.
 
 A card flashed from an image built before this repository (JoeKojima/Baymax PR #22)
 keeps that image's own `/usr/local/bin/ember-update`: it is copied into the image when
 the image is built, and no release replaces it. Pointed at this repository in Device
 Settings, such a card still installs each release, but its updater never sets
 `BAYMAX_DATA_DIR` or links the shared models, so every update starts with empty
-memory, reminders and family messages and downloads the models again. Reflash it with
-an image from this builder (recommended), or once, by hand, as the `ember` user: stop
+memory, reminders and family messages, forgets the voice volume and which daily
+check-ins were done, and downloads the models again. Reflash it with an image from
+this builder (recommended), or once, by hand, as the `ember` user: stop
 Ember (`systemctl --user stop ember.service`), run `mkdir -p ~/ember-deployment/data`,
 move what the current release kept in `~/ember-deployment/current/Baymax-main/`
-(`chroma_store/`, `day_utterance/`, `toolkit_*.sqlite3`, `toolkit_feed_preferences.json`,
-`transcript_*.txt`, `session_*.wav`) into it, add `BAYMAX_DATA_DIR=/home/ember/ember-deployment/data` to
+(`chroma_store/`, `day_utterance/`, `toolkit_*.sqlite3`, `toolkit_*.json` (feed
+preferences, daily check-ins), `voice_volume.json`, `transcript_*.txt`, `session_*.wav`)
+into it, add `BAYMAX_DATA_DIR=/home/ember/ember-deployment/data` to
 `~/ember-deployment/current/Baymax-main/.env` (the old updater copies that `.env` into
 every later release), and start Ember again (`systemctl --user start ember.service`).
 Models are still downloaded again after each update on such a card.
