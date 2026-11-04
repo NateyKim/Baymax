@@ -32,6 +32,7 @@ RUNTIME_FILES = [
     "baymax_agent.py",
     "voice_analyzer.py",
     "semantic_embedder.py",
+    "convert_model.py",          # run while the image builds: optimum, transformers, torch
     "device_config.py",
     "fall_detection/detector.py",
     "features/toolkits/fall_detection.py",  # MediaPipe pose, now run by features/vision_process.py
@@ -39,7 +40,7 @@ RUNTIME_FILES = [
 
 # Needed at runtime but never imported by name.
 EXTRA_ROOTS = {
-    "onnxruntime": [],                     # backend for optimum's ORTModel (semantic memory)
+    "onnxruntime": [],                     # optimum's ORTModel backend (convert_model.py)
     "en_core_web_sm": [],                  # spaCy model, loaded with spacy.load()
 }
 

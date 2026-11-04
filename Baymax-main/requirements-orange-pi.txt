@@ -1,4 +1,5 @@
-# Native Linux ARM64 / Orange Pi CPU pose profile (Python 3.12).
+# Native Linux ARM64 / Orange Pi profile (Python 3.12), one file for every Orange Pi:
+# Orange Pi 4 Pro (Allwinner A733, no NPU runtime) and Orange Pi 5 / 5 Max (RK3588).
 # MediaPipe 0.10.18 is the published ARM64 wheel; it requires NumPy < 2.
 # Separate pins avoid changing the tested Windows/macOS desktop environment.
 google-genai==1.62.0
@@ -19,10 +20,34 @@ jaxlib==0.4.38
 numba==0.61.2
 llvmlite==0.44.0
 scipy==1.13.1
-# Offline engage/wake recognition; the model is downloaded lazily on first use.
-vosk==0.3.45
 
-# Same demo features as the x86 profile: audio cleanup, serial eyes, MP3 playback.
+# Same MVP features as requirements-pc.txt (run_pc.py turns on audio cleanup by
+# default, so without pywebrtc-audio the runtime stopped at import on the Pi).
+# Conversational ability: local AEC3 / noise suppression / AGC2 (aarch64 wheel).
 pywebrtc-audio==0.2.0
+# Arduino/MAX7219 eyes over USB serial (pure Python).
 pyfirmata2==2.5.1
+# LibriVox audiobooks (MP3 decode). No aarch64 wheel: builds from source with the
+# compiler that "0 - Debian Prerequisites" installs (the OPI4 image builder ships a
+# prebuilt wheel instead, devops/opi4-flash/assets.json).
 miniaudio==1.71
+# Offline engage/wake recognition and wake words during audiobooks (aarch64 wheel).
+# The model is downloaded lazily on first use, or ahead with wakeword.py --download.
+vosk==0.3.45
+# Memory (recalls past conversations): ChromaDB store + MiniLM on ONNX Runtime.
+# No torch/transformers: semantic_embedder.py tokenizes with `tokenizers` and pools in
+# numpy; Ember downloads the checksummed model on its first start.
+chromadb==1.5.8
+onnxruntime==1.24.4
+tokenizers==0.22.2
+# ChromaDB's OpenTelemetry, held at 1.27.0: the last release that accepts MediaPipe
+# 0.10.18's protobuf < 5 (pip otherwise backtracks through dozens of versions).
+opentelemetry-exporter-otlp-proto-grpc==1.27.0
+opentelemetry-sdk==1.27.0
+# NPU pose on the Orange Pi 5 / 5 Max (RK3588) only: the RKNN runtime's Python side
+# (it also needs librknnrt.so, ORANGE_PI_SETUP.md). It installs on every aarch64
+# board, including the Orange Pi 4 Pro, but Ember imports it only after detecting
+# an RK3588 with the converted, checked models; anywhere else pose stays on MediaPipe
+# CPU. Same version as setup_converter.sh's default, which the accuracy check
+# records; wheels exist up to Python 3.12.
+rknn-toolkit-lite2==2.3.2 ; platform_machine == "aarch64" and python_version < "3.13"

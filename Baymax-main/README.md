@@ -16,7 +16,7 @@ Two processes run on startup:
 - **Realtime speech-to-speech** via Gemini Live API — no local ASR needed
 - **Video streaming** — camera feed sent to Gemini for visual context (one frame every 3 s); annotated MJPEG stream on `127.0.0.1:8080`, shown in the dashboard behind its login
 - **Fall detection** — MediaPipe Pose runs in a dedicated thread, shares the camera with Gemini. A fall must start from upright and the person must stay down for 2 s (`fall_detection/detector.py`); then Gemini checks on them and the web app emails an alert. Can be switched off per robot in `device.toml`
-- **Semantic memory** — on each user turn, retrieves similar past memories from ChromaDB (via `semantic_embedder.py`) and injects them as context; on session end, Gemini Flash summarises the conversation and embeds it back into ChromaDB
+- **Semantic memory** — on each user turn, retrieves similar past memories from ChromaDB (via `semantic_embedder.py`) and injects them as context; every 20 user turns or 3 quiet minutes, and when the session ends, Gemini Flash summarises the conversation since the last save and embeds it back into ChromaDB, so a crash or power cut loses only that part
 - **Voice biomarker analysis** — on session end, `voice_analyzer.py` analyses the recorded audio for vocal quality, prosody, lexical density, and syntactic complexity to track health trends over time
 - **Session audio recording** — full session audio saved for voice analysis
 
@@ -64,7 +64,7 @@ live monitor displays tool activity names.
 4. **Download the pose landmarker model** (first run downloads automatically):
    The MediaPipe pose model (`pose_landmarker_full.task`) is downloaded on first run if not present. It is not tracked in git due to its size (~9 MB).
 
-5. **ONNX embedding model** — the `all-MiniLM-L6-v2-onnx/` directory must be present for semantic memory. Run `convert_model.py` once to generate it if missing.
+5. **ONNX embedding model** — the `all-MiniLM-L6-v2-onnx/` directory (`model.onnx` and `tokenizer.json`) must be present for semantic memory. Where memory's packages are installed (ChromaDB, ONNX Runtime and `tokenizers`; the Docker image and the Orange Pi profile), Ember downloads it in the background on start if missing: about 90 MB from Hugging Face, pinned to one revision and checked by SHA-256. `python semantic_embedder.py --download` fetches it beforehand; `convert_model.py` builds the same model where optimum and torch are installed (the Docker image does this while it builds).
 
 ## Running
 
@@ -77,7 +77,7 @@ python3 baymax_app.py          # Web dashboard (separate terminal)
 ```
 
 Press `Ctrl+C` to end a session. On exit, Baymax will:
-1. Summarise the conversation and embed memories into ChromaDB
+1. Summarise the conversation since the last memory save and embed memories into ChromaDB (within 10 s of the stop under the MVP service, `BAYMAX_MEMORY_STOP_SECONDS`)
 2. Run voice biomarker analysis on the session audio
 3. Restart automatically (when launched via `startup.sh`)
 

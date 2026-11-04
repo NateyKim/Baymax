@@ -195,7 +195,8 @@ class V10ReceiveLoopTests(unittest.TestCase):
                         yield response
                     raise asyncio.CancelledError()
                 return stream()
-        played, said = [], []
+        played, said, heard = [], [], []
+        self.heard = heard  # the user's transcript, now recorded through _transcript_add
         self.playback_states = []
         self.playback_starts = []
         def append_playback(data, *, new_turn=False):
@@ -208,7 +209,7 @@ class V10ReceiveLoopTests(unittest.TestCase):
             "time": SimpleNamespace(monotonic=clock, perf_counter=time.perf_counter),
             "public_toolkit": SimpleNamespace(), "monitor": SimpleNamespace(emit=Mock(), transcribe=Mock(),
                                                                            finish_transcripts=Mock()),
-            "_transcript_lock": threading.Lock(), "_transcript_user": [], "_transcript_gemini": said,
+            "_transcript_add": lambda speaker, text: (said if speaker == "gemini" else heard).append(text.strip()),
             "_TurnTranscript": lambda *a: SimpleNamespace(add=Mock(), flush=Mock()),
             "_initiation_ts_lock": threading.Lock(), "_recent_user_words_lock": threading.Lock(),
             "_recent_user_words": [], "MEMORY_WORD_WINDOW": 50, "_memory_embedder": None,
@@ -249,7 +250,7 @@ class V10ReceiveLoopTests(unittest.TestCase):
         self.assertEqual(len(played), 2)  # No audio chunk from the cancellation message.
         self.assertEqual(said, ["Cats are", "Dogs are"])
         self.namespace['_flush_playback'].assert_called_once()
-        self.assertIn("Ember, wait, I meant dogs", self.namespace['_transcript_user'])
+        self.assertIn("Ember, wait, I meant dogs", self.heard)
         self.assertEqual(self.playback_states, [True, True])
         self.assertFalse(self.namespace['_gemini_speaking'])
 

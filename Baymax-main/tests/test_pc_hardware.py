@@ -1,11 +1,14 @@
 import ast
+from contextlib import ExitStack
 import os
+import tempfile
 from pathlib import Path
 import sys
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
+import pc_hardware
 from pc_hardware import camera_candidates, open_camera, select_audio_devices
 
 
@@ -146,6 +149,145 @@ class HardwareTests(unittest.TestCase):
         audio.default = type("Defaults", (), {"device": (-1, 1)})
         with patch.dict(os.environ, {"BAYMAX_MIC_DEVICE": "", "BAYMAX_SPEAKER_DEVICE": ""}):
             self.assertEqual(select_audio_devices(audio), (0, 1))
+
+
+class BigLittleCpuTests(unittest.TestCase):
+    """Orange Pi 5 (RK3588): cpu0-3 are Cortex-A55s, cpu4-7 Cortex-A76s. Every case sets
+    sys.platform and platform.machine, so the results are the same on Windows, macOS,
+    x86 Linux and the Pi itself, and BAYMAX_CPU_PINNING is set for every case, so the
+    documented BAYMAX_CPU_PINNING=off in the environment or in .env (which test_toolkit
+    loads) changes nothing."""
+    RK3588 = {0: 414, 1: 414, 2: 414, 3: 414, 4: 1024, 5: 1024, 6: 1024, 7: 1024}
+
+    def setUp(self):
+        environment = patch.dict(os.environ, {"BAYMAX_CPU_PINNING": "auto"})
+        environment.start()
+        self.addCleanup(environment.stop)
+
+    def sysfs(self, values, name="cpu_capacity"):
+        root = tempfile.TemporaryDirectory()
+        self.addCleanup(root.cleanup)
+        for cpu, value in values.items():
+            path = Path(root.name, f"cpu{cpu}", name)
+            path.parent.mkdir(parents=True)
+            path.write_text(f"{value}\n")
+        return root.name
+
+    def machine(self, system="linux", machine="aarch64"):
+        stack = ExitStack()
+        stack.enter_context(patch.object(sys, "platform", system))
+        stack.enter_context(patch.object(pc_hardware.platform, "machine", return_value=machine))
+        return stack
+
+    def fast(self, values, allowed=None, name="cpu_capacity", system="linux", machine="aarch64"):
+        allowed = set(values) if allowed is None else allowed
+        with self.machine(system, machine), \
+             patch.object(pc_hardware.os, "sched_getaffinity", Mock(return_value=allowed), create=True):
+            return pc_hardware.performance_cpus(self.sysfs(values, name))
+
+    def test_rk3588_fast_cores_are_the_a76s(self):
+        self.assertEqual(self.fast(self.RK3588), {4, 5, 6, 7})
+        self.assertEqual(self.fast(self.RK3588, machine="arm64"), {4, 5, 6, 7})
+        self.assertEqual(self.fast(self.RK3588, allowed={0, 1, 2, 3, 4, 5}), {4, 5})   # respects an outer limit
+        self.assertEqual(self.fast(self.RK3588, allowed={4, 5, 6, 7}), {4, 5, 6, 7})   # already pinned: same set
+        self.assertIsNone(self.fast(self.RK3588, allowed={0, 1, 2, 3, 4}))             # never onto one core
+
+    def test_max_frequency_is_used_without_capacity_on_arm(self):
+        khz = {0: 1800000, 1: 1800000, 2: 1800000, 3: 1800000, 4: 2400000, 5: 2400000, 6: 2256000, 7: 2256000}
+        self.assertEqual(self.fast(khz, name="cpufreq/cpuinfo_max_freq"), {4, 5, 6, 7})
+
+    def test_x86_hybrid_cpus_are_left_to_the_scheduler(self):
+        # x86 has no cpu_capacity; intel_pstate reports each core's own maximum, so an
+        # i5-1340P (LattePanda Sigma) or i7-1260P reads 4.6/4.7 GHz P-cores and 3.4 GHz
+        # E-cores, under the 0.8 cut-off. Pinning was measured only on the RK3588.
+        hybrid = {**{cpu: 4700000 for cpu in range(8)}, **{cpu: 3400000 for cpu in range(8, 16)}}
+        for machine in ("x86_64", "AMD64", "i686"):
+            self.assertIsNone(self.fast(hybrid, name="cpufreq/cpuinfo_max_freq", machine=machine), machine)
+        self.assertIsNone(self.fast(self.RK3588, machine="x86_64"))
+        self.assertEqual(self.fast(hybrid, name="cpufreq/cpuinfo_max_freq"), set(range(8)))   # same tree on ARM
+
+    def test_identical_cores_or_other_systems_are_left_alone(self):
+        self.assertIsNone(self.fast({0: 1024, 1: 1024, 2: 1024, 3: 1024}))       # Pi 4, RK3566
+        self.assertIsNone(self.fast({0: 414, 4: 1024, 5: 1024}, allowed={0}))   # fast cores not allowed
+        for system, machine in (("darwin", "arm64"), ("darwin", "x86_64"), ("win32", "ARM64"), ("win32", "AMD64")):
+            self.assertIsNone(self.fast(self.RK3588, system=system, machine=machine), system)
+
+    def test_pinning_moves_every_thread_once_and_can_be_turned_off(self):
+        setter = Mock()
+        current = Mock(return_value={0, 1, 2, 3, 4, 5, 6, 7})
+        with patch.object(pc_hardware, "performance_cpus", return_value={4, 5, 6, 7}), \
+             patch.object(pc_hardware, "thread_ids", return_value=[100, 101, 102]), \
+             patch.object(pc_hardware.os, "sched_setaffinity", setter, create=True), \
+             patch.object(pc_hardware.os, "sched_getaffinity", current, create=True), \
+             patch("builtins.print") as printed:
+            with patch.dict(os.environ, {"BAYMAX_CPU_PINNING": "off"}):
+                self.assertIsNone(pc_hardware.use_performance_cpus())
+            setter.assert_not_called()
+            with patch.dict(os.environ, {"BAYMAX_CPU_PINNING": "auto"}):
+                self.assertEqual(pc_hardware.use_performance_cpus(), {4, 5, 6, 7})
+            # The caller, then every thread that already exists (eyes, network watch, OpenBLAS).
+            self.assertEqual([c.args for c in setter.call_args_list],
+                             [(0, {4, 5, 6, 7}), (100, {4, 5, 6, 7}), (101, {4, 5, 6, 7}), (102, {4, 5, 6, 7})])
+            self.assertEqual(printed.call_count, 1)
+            self.assertIn("[CPU] Running on the fast cores 4,5,6,7", printed.call_args.args[0])
+            current.return_value = {4, 5, 6, 7}                 # run_pc's call after run_mvp's: quiet
+            with patch.dict(os.environ, {"BAYMAX_CPU_PINNING": "auto"}):
+                self.assertEqual(pc_hardware.use_performance_cpus(), {4, 5, 6, 7})
+            self.assertEqual(printed.call_count, 1)
+        setter.reset_mock()
+        with patch.object(pc_hardware, "performance_cpus", return_value=None), \
+             patch.object(pc_hardware.os, "sched_setaffinity", setter, create=True):
+            self.assertIsNone(pc_hardware.use_performance_cpus())
+        setter.assert_not_called()
+
+    def test_a_refused_pin_leaves_ember_on_all_cores(self):
+        with patch.object(pc_hardware, "performance_cpus", return_value={4, 5, 6, 7}), \
+             patch.object(pc_hardware.os, "sched_getaffinity", Mock(return_value=set(range(8))), create=True), \
+             patch.object(pc_hardware.os, "sched_setaffinity", Mock(side_effect=PermissionError(1, "denied")),
+                          create=True), \
+             patch.object(pc_hardware, "pin_threads") as others, patch("builtins.print") as printed:
+            self.assertIsNone(pc_hardware.use_performance_cpus())
+        others.assert_not_called()
+        self.assertIn("Could not keep Ember on the fast cores", printed.call_args.args[0])
+
+    def test_threads_that_exit_or_start_meanwhile(self):
+        tasks = tempfile.TemporaryDirectory()
+        self.addCleanup(tasks.cleanup)
+        for tid in ("100", "101", "102"):
+            Path(tasks.name, tid).mkdir()
+        pinned = []
+        def setaffinity(tid, cpus):
+            if tid == 101:
+                raise ProcessLookupError(3, "No such process")     # exited after the listing
+            pinned.append(tid)
+            if tid == 100 and not Path(tasks.name, "103").exists():
+                Path(tasks.name, "103").mkdir()                  # started before 100 was moved
+        with patch.object(pc_hardware.os, "sched_setaffinity", setaffinity, create=True):
+            pc_hardware.pin_threads({4, 5}, tasks.name)
+        self.assertEqual(pinned, [100, 102, 103])
+        self.assertEqual(pc_hardware.thread_ids(str(Path(tasks.name, "missing"))), [0])
+
+    def test_linux_arm_camera_keeps_only_the_newest_frame(self):
+        cv2 = SimpleNamespace(CAP_PROP_BUFFERSIZE=38)
+        cases = (("linux", "aarch64", [(38, 1)]), ("linux", "arm64", [(38, 1)]),
+                 ("linux", "x86_64", []),                       # LattePanda, Docker image, x86 Linux PCs
+                 ("darwin", "arm64", []), ("win32", "AMD64", []))
+        for system, machine, expected in cases:
+            capture = Mock()
+            with self.machine(system, machine):
+                pc_hardware.latest_frames_only(cv2, capture)
+            self.assertEqual([c.args for c in capture.set.call_args_list], expected, (system, machine))
+
+    def test_runtime_shortens_the_camera_queue_only_for_the_pc_profile(self):
+        # The Orange Pi and the LattePanda MVP run the pc profile (run_pc.py); unit 001's
+        # path (deploy/host/startup.sh) and the Docker image run realtime_gemini_10.py
+        # without it. Within it, latest_frames_only's arm_linux() check (above) keeps
+        # the x86 LattePanda on OpenCV's queue.
+        source = (ROOT / "realtime_gemini_10.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count("latest_frames_only(cv2, cap)"), 1)
+        self.assertIn("    if pc:  # pc profile (run_pc.py: the Orange Pi, the LattePanda MVP); only the Orange Pi (arm_linux) keeps 1 frame\n"
+                      "        from pc_hardware import latest_frames_only\n"
+                      "        latest_frames_only(cv2, cap)\n", source)
 
 
 if __name__ == "__main__":
