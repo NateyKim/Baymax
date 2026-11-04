@@ -1,5 +1,47 @@
 # MVP (unreleased)
 
+- **Ember for Orange Pi: one repository for the Orange Pi 4 Pro and the Orange Pi 5
+  Max.** Made from JoeKojima/Baymax PR #29 (`opi4-demo`), PR #22 (`codex/opi4-flash`)
+  and the Orange Pi 5 Max branches `orangepi5-npu` + `memory-incremental-saves`. It
+  deliberately diverges from Baymax's `startup-greeting` (LattePanda) branch; shared
+  fixes are ported by hand. One dependency file, `requirements-orange-pi.txt`, for
+  both boards (memory included; rknn-toolkit-lite2 installs on the 4 Pro but is never
+  imported there). Offline only: `check_release.py` passes on macOS (core 467 with 4
+  skipped, toolkit 171) and OPI4-Flash's tests pass (37, 9 Linux-only skipped).
+  Nothing has run on either board in this combination yet.
+  - Pose stays in its own process (opi4-demo's fix for minute-late replies and mic
+    overflows on the 4 Pro) and the Orange Pi 5's backend now runs inside that child
+    (`features.pose.backend.ChildPose`): with `camera.pose_model` lite (default) or
+    full, a set-up RK3588 runs the checked full model on the NPU, otherwise MediaPipe
+    runs the chosen .task on the CPU; heavy always uses the CPU. A failed or dead pose
+    process is restarted once on the CPU; video continues. The vision process reports
+    the model's device with every frame, so the fall toolkit shows NPU/CPU correctly.
+    A pose process that hangs without exiting is not detected yet.
+  - Fast-core pinning: `BAYMAX_CPU_PINNING=auto` (default) pins only on an RK3588,
+    where it was measured; `on` pins on any ARM big.LITTLE board (to try the 4 Pro's
+    two A76s, which would also carry the pose/face processes); `off` never pins.
+  - Kept from the 5 Max work: the live view drawn only while watched (replaces
+    opi4-demo's viewer counter, with its tests), the 1-frame V4L2 buffer on ARM, the
+    fall toolkit's shared pose, the per-platform MVP updater, memory saved during
+    uptime. Kept from opi4-demo: lite model at 10 fps with 6 frames of fall history,
+    conversation/eyes/engage work, the 4 Pro Wi-Fi hotspot. The pose tools
+    (`validate.py`, `benchmark.py`) now use 10 fps and history 6; VALIDATION.md's
+    numbers are marked as measured before the merge (in-process, full model, 15 fps).
+  - OPI4-Flash follows a branch of this repository (default `release`;
+    `https://github.com/JoeKojima/Ember-OrangePi.git` is a working name) instead of
+    Baymax PR #20, installs packages only from `requirements-orange-pi.txt` (its
+    separate v10 list is gone; the import check adds chromadb, onnxruntime,
+    tokenizers), and keeps memory, reminders and logs in `~/ember-deployment/data`
+    and downloaded models in `~/ember-deployment/shared` across updates. The Debian
+    prerequisites install git, which the updater needs on a fresh 5 Max.
+  - Pending on the boards: CPU summed over Ember and its pose/face processes (NPU vs
+    `BAYMAX_POSE_BACKEND=cpu`, with and without the fall toolkit), pose round-trip
+    time, mic overflows and reply latency over 10 minutes, killing the pose process,
+    the live view, frame age with the 1-frame buffer, `validate.py --fps 10` fall
+    agreement on the 5 Max; `cpu_capacity` and pinning, memory download and survival
+    across `ember-update`, image build size/time and an emulated `check_release` on the
+    4 Pro.
+
 - Split device demos: this branch is **OPI4 Demo** (`opi4-demo`). Both demos
   retain identical shared v10 runtime/features; only device setup and the
   Orange Pi Wi-Fi provisioning differ. Add missing ARM audio cleanup,

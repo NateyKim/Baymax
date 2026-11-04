@@ -1,55 +1,74 @@
-# Device demos: one feature set
+# Orange Pi boards: one feature set
 
-| | LattePanda Demo (PR #20) | OPI4 Demo |
+| | Orange Pi 4 Pro | Orange Pi 5 Max |
 |---|---|---|
-| Branch | `startup-greeting` | `opi4-demo` |
-| Review base | `mvp-v10` | `mvp-v10` |
-| CPU | Intel x86_64 / AMD64 | Orange Pi 4 Pro ARM64 / aarch64 |
-| OS setup | Debian 13 desktop | 64-bit Debian/DietPi; desktop needed for Setup/Monitor |
-| Dependencies selected by Setup | `requirements-pc.txt` | `requirements-orange-pi.txt` |
-| Eye connection | onboard Leonardo's saved serial path | external Firmata-compatible Arduino; set its real serial path |
-| Wi-Fi provisioning | existing NetworkManager path | optional single-radio DietPi hotspot in OPI4 branch |
+| SoC / CPU | Allwinner A733: 2x Cortex-A76 + 6x Cortex-A55, ARM64 | Rockchip RK3588: 4x Cortex-A76 + 4x Cortex-A55, ARM64 |
+| OS | DietPi (Debian 13) SD image from [OPI4-Flash](../devops/opi4-flash/README.md), or Debian 13 | Armbian Debian 13, vendor 6.1 kernel for the NPU; desktop for Setup/Monitor |
+| Setup | the SD image, or `Baymax-main/MVP.md` | clickables and `Baymax-main/ORANGE_PI_SETUP.md` |
+| Dependencies | `requirements-orange-pi.txt` | the same file |
+| NPU for pose | none: MediaPipe on the CPU | optional: the RK3588 NPU after `features/pose`'s conversion and on-board check; MediaPipe on the CPU otherwise |
+| Fast-core pinning, `BAYMAX_CPU_PINNING=auto` | not pinned (unmeasured; `on` tries the 2 A76s) | pinned to cpu4-7 (measured) |
+| Wi-Fi provisioning | the image's preset network; optional setup hotspot installed by hand (`deploy/host`) | the OS's own network setup; no hotspot |
+| Eye connection | external Firmata-compatible Arduino; set its real serial path | the same |
+| Updates | the image's `ember-update` (branch, default `release`) | opt-in `devops/mvp/update.py` (`BAYMAX_UPDATE_BRANCH`, default `release`) |
 
-Both start `Baymax-main/run_mvp.py` -> `run_pc.py` -> `realtime_gemini_10.py`.
-Both include the same conversation/personality, Gemini session, audio cleanup,
-400 ms turn-end default, reply-time echo protection, local eye expressions,
-60-second idle sleep eyes, engage/disengage, reminders/repeats/check-ins,
-audiobooks/wake recognition, app integration, public tools, and built-in
-pose/fall detection. Existing feature flags, opt-ins and saved settings still
-apply; app integration needs its device key and alerts need their recipients.
-Memory Palace/people-recognition work outside this MVP is not added by the split.
+Both start `Baymax-main/run_mvp.py` -> `run_pc.py` -> `realtime_gemini_10.py` and
+include the same conversation/personality, Gemini session, audio cleanup, 400 ms
+turn-end default, reply-time echo protection, local eye expressions, 60-second idle
+sleep eyes, engage/disengage, reminders/repeats/check-ins, audiobooks/wake
+recognition, app integration, public tools, conversation memory (saved while Ember
+runs) and built-in pose/fall detection. Existing feature flags, opt-ins and saved
+settings still apply; app integration needs its device key and alerts need their
+recipients. Memory Palace/people-recognition work outside this MVP is not added.
 
-The child-process vision fix, lite pose model and reduced inference rate stay
-in both demos. These are shared performance fixes, not different features.
-Shared Python runtime, feature modules, bootstrap and feature tests must stay
-identical when updating either branch. Port shared fixes to its sibling; keep
-device setup changes limited to docs, dependency profiles and deployment files.
-Both PRs are sibling demos against `mvp-v10`, not additive feature patches:
-review/select the device branch rather than merging the pair into each other.
+The same code runs on both boards; the board decides at runtime:
+
+- **Pose** runs in its own process (`features/vision_process.py`, so it cannot hold
+  Ember's GIL) at 10 fps with `camera.pose_model` (lite by default). On an Orange Pi
+  5 Max that passed the NPU check, lite or full means the checked full model on the
+  NPU; heavy always stays on the CPU. Everywhere else it is MediaPipe on the CPU. A
+  pose process that dies is restarted once on the CPU; video continues either way.
+- **Pinning:** `auto` pins only on the RK3588. Child processes (pose, face) inherit
+  it, which on the 4 Pro would leave Ember and both children on its 2 A76 cores, so
+  that is left off until measured.
+- **The camera** keeps one buffered frame on Linux ARM64 (unmeasured on both boards).
+- **rknn-toolkit-lite2** installs on both boards (same requirements file) but is
+  imported only on an RK3588 with converted, checked models.
+
+This repository deliberately diverges from JoeKojima/Baymax's `startup-greeting`
+(LattePanda) branch: it carries the Orange Pi 5 Max work (NPU pose, pinning, memory on
+the board, the per-platform updater) and the Orange Pi 4 Pro image builder. Fixes that
+both need are ported by hand in each direction; keep board differences in
+`pc_hardware.py`, `features/pose`, the dependency profile, docs and deployment files.
 
 ## Setup
 
-Follow this branch's `Baymax-main/MVP.md`. Setup detects Linux x86_64 versus
-ARM64 and installs the corresponding pinned dependency file under Python 3.12.
-Both profiles include pywebrtc-audio (audio cleanup), pyfirmata2 (eyes), miniaudio
-(audiobook decoding) and Vosk (offline wake). ARM miniaudio may compile from
-source; install compiler tools. ARM MediaPipe/NumPy pins differ from x86 pins.
+Orange Pi 4 Pro: build an SD image with [OPI4-Flash](../devops/opi4-flash/README.md),
+or follow `Baymax-main/MVP.md`. Orange Pi 5 Max: follow
+`Baymax-main/ORANGE_PI_SETUP.md` (clickables; the NPU steps are optional). Setup
+detects Linux ARM64 and installs `requirements-orange-pi.txt` under Python 3.12. It
+includes pywebrtc-audio (audio cleanup), pyfirmata2 (eyes), miniaudio (audiobook
+decoding), Vosk (offline wake), ChromaDB/ONNX Runtime/tokenizers (memory) and
+rknn-toolkit-lite2. ARM miniaudio and praat-parselmouth may compile from source
+(the SD image downloads prebuilt wheels instead); install compiler tools. ARM
+MediaPipe/NumPy pins differ from x86 pins.
 
 The prerequisite helper supports Debian 13 only. On DietPi/another Debian
-version, provision equivalent system libraries first: curl, ca-certificates,
+version, provision equivalent system libraries first: curl, ca-certificates, git,
 libportaudio2, libgl1, libegl1, libgles2, libglib2.0-0 (or the distro's t64
 variant), libsndfile1, libasound2-plugins, build-essential, cmake, pkg-config,
 and xdg-utils; a browser/terminal and working desktop audio for Setup/Monitor.
-Kernel/audio-server provisioning and SD-card image creation are separate work.
-Do not run the root-owned Orange Pi single-radio hotspot service on LattePanda.
+Kernel/audio-server provisioning is separate work; the SD image covers it for the
+Orange Pi 4 Pro. Install the root-owned single-radio hotspot service only on an
+Orange Pi 4 Pro.
 
 Save the actual microphone, speaker and camera in Setup. Never copy another
 robot's `.env`, API/device keys or `/etc/ember/device.toml`. Confirm the local
 clock/timezone. Stop the older runtime/eye demo before launching this one.
-On Orange Pi, connect a Firmata-compatible Arduino with the documented MAX7219
-wiring and set `BAYMAX_EYES_PORT` to its actual `/dev/serial/by-id/...` path;
-the LattePanda Leonardo default is not an Orange Pi port. Grant the desktop
-user serial access (usually `dialout`, followed by logging in again).
+Connect a Firmata-compatible Arduino with the documented MAX7219 wiring and set
+`BAYMAX_EYES_PORT` to its actual `/dev/serial/by-id/...` path; the LattePanda
+Leonardo default is not an Orange Pi port. Grant the desktop user serial access
+(usually `dialout`, followed by logging in again).
 
 For voice sleep, keep audio enhancement healthy and allow the first Vosk model
 download (or prefetch with `.venv/bin/python features/toolkits/wakeword.py --download`
@@ -59,16 +78,17 @@ raw local recordings continue. This is voice sleep, not a privacy-off switch.
 
 ## Validation
 
-Run `python check_release.py` in `Baymax-main` on each branch; preserve separate
-core/toolkit results. The profile test checks shared feature dependencies and
-the installer architecture selection. Compare shared files between the branch
-heads before publishing; only device docs, Wi-Fi provisioning and its tests may
-differ for this split. Offline checks do not establish physical equivalence.
+Run `python check_release.py` in `Baymax-main`; preserve separate core/toolkit
+results. The profile test checks the shared feature dependencies and the installer
+architecture selection. Offline checks do not establish physical equivalence
+between the boards.
 
-On each device, verify installation/native imports, selected devices, audible
+On each board, verify installation/native imports, selected devices, audible
 multi-turn conversation/echo, engage/disengage (including reminder/fall wake),
-eyes, audiobook playback, reminders/app integration, fall behavior, sustained
-camera+audio performance, clean stop/restart and cold boot. Orange Pi hotspot
-AP mode and phone setup also require board testing. Hardware/provider checks
-remain pending; no device, service, saved SD image or production alert is changed
-by preparing these branches. Software-lead review remains required for release.
+eyes, audiobook playback, reminders/app integration, memory, fall behavior,
+sustained camera+audio performance (CPU summed over Ember and its pose/face
+processes), clean stop/restart and cold boot. On the Orange Pi 5 Max also the NPU
+path inside Ember; on the Orange Pi 4 Pro the hotspot (if installed) and the SD
+image's first boot and updates. Hardware/provider checks remain pending; no device,
+service, saved SD image or production alert is changed by preparing this
+repository. Software-lead review remains required for release.

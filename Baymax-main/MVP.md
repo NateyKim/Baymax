@@ -1,14 +1,16 @@
-# OPI4 Demo — integrated v10 MVP
+# Ember for Orange Pi — integrated v10 MVP
 
-This branch combines PR #7 (setup/device compatibility), #11 (toolkits and
+This repository combines PR #7 (setup/device compatibility), #11 (toolkits and
 feature folders), and #12 (Conversational Ability). `run_mvp.py` starts their
 shared runtime, `realtime_gemini_10.py`, through the existing key/model preflight
 in `run_pc.py`. (The original MVP, PR #15, ran v8; this copy runs v10, which adds
 fall detection, robot-started conversations and `device.toml` settings.)
-Target: 64-bit Debian/DietPi Orange Pi 4 Pro (ARM64/aarch64), with working audio, camera and serial permissions.
+Targets: the Orange Pi 4 Pro (64-bit DietPi/Debian 13) and the Orange Pi 5 Max
+(Armbian Debian 13), ARM64/aarch64, with working audio, camera and serial permissions.
 Use a desktop session for the supplied Setup/Monitor workflow.
 Actual target-device validation is pending. See
-[device differences and feature parity](../docs/DEMO_DEVICES.md).
+[the boards and what differs](../docs/DEMO_DEVICES.md) and
+[Orange Pi setup](ORANGE_PI_SETUP.md) (pose, pinning, memory, the optional NPU).
 
 ## Included features
 
@@ -31,34 +33,46 @@ Actual target-device validation is pending. See
   Reply audio or detected near-end speech cancels it. Requires working echo cancellation.
   It is a bundled synthetic cue, not Gemini speech or another model request.
 
-PR #8 people awareness and #13 Memory Palace are outside this demo.
+PR #8 people awareness and #13 Memory Palace are outside this MVP. v10's own
+conversation memory (summaries saved while Ember runs) is on: see
+[ORANGE_PI_SETUP.md](ORANGE_PI_SETUP.md#memory).
 The v10 baseline includes reminders, audiobooks and app integration; the later
 conversation, engage/disengage and vision performance improvements are retained.
 See [LED eye setup](features/eyes/README.md) for serial access, enabling/disabling
 and wiring. Physical second-matrix behavior still needs validation with MVP.
-v8 remains in the repository but this demo runs v10. The strict local
+v8 remains in the repository but this MVP runs v10. The strict local
 name/20-second reply gate is off by default; Gemini judges conversational
 intent. "Ember disengage" enters voice sleep and "Ember engage" wakes it.
 Camera frames and local raw recordings continue during voice sleep.
 Transcripts are not uploaded to the fleet cloud; Gemini still receives
 audio/video while engaged.
 
-## Install and configure OPI4 Demo
+## Install and configure
 
-Use the complete `opi4-demo` branch checkout or extracted ZIP, with `Baymax-main/`
-and `devops/` together. From the project root:
+- **Orange Pi 4 Pro:** the simplest path is a personalized SD image from
+  [OPI4-Flash](../devops/opi4-flash/README.md), which installs everything below and
+  updates itself from the `release` branch. The steps below also work on Debian 13.
+- **Orange Pi 5 Max:** follow [ORANGE_PI_SETUP.md](ORANGE_PI_SETUP.md) (the same
+  steps through the clickables, plus the optional NPU setup).
+
+Use a complete checkout of this repository's `release` branch (or an extracted ZIP),
+with `Baymax-main/` and `devops/` together. From the project root:
 
 On a fresh device, stop any existing Ember runtime and standalone eye demo, then download this branch:
 
 ```bash
 sudo apt update
 sudo apt install -y git
-git clone --branch opi4-demo --single-branch https://github.com/JoeKojima/Baymax.git ~/Ember-OPI4
-cd ~/Ember-OPI4
+git clone --branch release --single-branch https://github.com/JoeKojima/Ember-OrangePi.git ~/Ember-OrangePi
+cd ~/Ember-OrangePi
 ```
 
-For an existing clean checkout of `opi4-demo`, use `git pull --ff-only`.
-Preserve local robot edits and private configuration before updating; a pull on another branch does not select this demo.
+For an existing clean checkout of `release`, use `git pull --ff-only`.
+Preserve local robot edits and private configuration before updating; a pull on another branch does not select this release.
+An existing Orange Pi checkout of JoeKojima/Baymax switches with
+`git remote set-url origin https://github.com/JoeKojima/Ember-OrangePi.git` (keep
+`.models/pose_npu`: the checked NPU models stay valid while rknn-toolkit-lite2 and
+librknnrt are unchanged).
 Run the commands below as the desktop user; the prerequisite script requests
 administrator access for system packages. Do not run Ember itself with sudo.
 
@@ -95,10 +109,11 @@ No extra capture streams are added to the runtime.
 ## Automatic startup
 
 The instructions below require a working Linux desktop/user session. A headless
-DietPi service is a separate deployment path; this split does not install one.
+DietPi service is the [OPI4-Flash](../devops/opi4-flash/README.md) image's path;
+these steps do not install one.
 
-Stop any manually started runtime with Ctrl+C first. Then, as `meowmax` in the
-robot's desktop session, without sudo:
+Stop any manually started runtime with Ctrl+C first. Then, as the robot's desktop
+user (`meowmax` on ember-002) in the robot's desktop session, without sudo:
 
 ```bash
 python3 devops/mvp/install_autostart.py
@@ -167,12 +182,12 @@ subtraction remain enabled, and other launchers retain their existing default.
 After updating, reinstall the startup files and start the desktop session:
 
 ```bash
-cd ~/Ember-MVP
+cd ~/Ember-OrangePi
 python3 devops/mvp/install_autostart.py
 bash devops/mvp/start-session.sh
 ```
 
-It opens `http://127.0.0.1:8766/monitor` on the LattePanda, showing transcripts,
+It opens `http://127.0.0.1:8766/monitor` on the robot, showing transcripts,
 listening/thinking/speaking state, microphone/DSP metrics and tool activity.
 Monitor opens automatically at login when a physical display is connected
 (Linux DRM connector status). Without one, it remains available locally: use
@@ -209,8 +224,9 @@ The v10 built-in vision path defaults to `camera.pose_tracking = true` and
 `fall_detection.enabled = true` in `/etc/ember/device.toml`. Both are enabled for
 a fresh device; saved `false` settings (including a temporary demo opt-out) still
 win until changed explicitly. These settings are separate from
-`BAYMAX_FALL_DETECTION_ENABLED`, which controls the optional second CPU toolkit.
-Use one fall detector rather than enabling duplicate pose inference. This default
+`BAYMAX_FALL_DETECTION_ENABLED`, the optional fall toolkit. With pose tracking on it
+reuses this pose (no second model), but adds a second fall detector, so one fall can
+give two check-ins; leave it off unless you are testing it. This default
 does not provision caregiver recipients or validate fall accuracy on new hardware.
 
 Echo protection removes positive AGC boost while the speaker/device buffer and
@@ -255,7 +271,7 @@ generated signals and non-muted voiced double talk. Physical validation remains 
 Ten residual/text tests cover multiple delays, polarity, movement, quiet/strong
 double talk, stale/missing references, failure isolation and non-destructive
 transcript warnings. Native synthetic behavior remains verified with this layer.
-Actual room/movement behavior, quiet interruptions and LattePanda CPU cost remain pending.
+Actual room/movement behavior, quiet interruptions and the robot's CPU cost remain pending.
 These use simulated devices/providers and do not measure conversation latency.
 
 Pending on ember-002: clean install/native audio processor imports, actual

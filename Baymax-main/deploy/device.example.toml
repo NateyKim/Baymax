@@ -29,7 +29,7 @@ speaker_volume = "75%"
 mic_volume = "85%"
 
 [camera]
-# PR #20 enables built-in v10 pose tracking and fall detection by default.
+# Built-in v10 pose tracking and fall detection are on by default.
 # Existing per-device false overrides remain in effect until explicitly changed.
 # OpenCV indices tried in order; the first that returns a frame wins.
 indices = [0, 1, 2]
@@ -37,7 +37,9 @@ indices = [0, 1, 2]
 # detection and face presence need it: no fall alerts, and the robot never
 # starts a conversation on its own.
 pose_tracking = true
-# MediaPipe pose model: "lite" (least CPU, default), "full" or "heavy".
+# MediaPipe pose model on the CPU: "lite" (least CPU, default), "full" or "heavy".
+# An Orange Pi 5 / 5 Max with the NPU set up (ORANGE_PI_SETUP.md) runs the checked
+# full model on the NPU for "lite" and "full"; "heavy" always stays on the CPU.
 pose_model = "lite"
 
 [network]
@@ -47,8 +49,10 @@ ap_iface = "wlo1"
 hotspot_connection = "Baymax_Hotspot"
 
 [fall_detection]
-# This is v10's built-in detector, separate from BAYMAX_FALL_DETECTION_ENABLED
-# (the optional second CPU toolkit). Do not enable both to duplicate inference.
+# This is v10's built-in detector, separate from BAYMAX_FALL_DETECTION_ENABLED.
+# The toolkit (BAYMAX_FALL_DETECTION_ENABLED=1) reuses this pose (no second model)
+# but adds a second detector, so one fall can give two check-ins; leave it off
+# unless testing it.
 # false turns off the fall check and its alerts (e.g. for a demo). Pose
 # tracking keeps running because video and face presence need it.
 enabled = true

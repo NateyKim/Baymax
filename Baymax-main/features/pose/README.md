@@ -2,21 +2,33 @@
 
 The core camera thread's pose estimate (fall detection, face presence for
 conversation initiation, the live-view skeleton and the fall toolkit) can run on
-the RK3588's NPU instead of MediaPipe on the CPU. Everywhere else, and on any
-RK3588 where the NPU is not ready, it is MediaPipe on the CPU exactly as before.
+the RK3588's NPU (Orange Pi 5 / 5 Max) instead of MediaPipe on the CPU. Everywhere
+else (including the Orange Pi 4 Pro), and on any RK3588 where the NPU is not ready,
+it is MediaPipe on the CPU exactly as before. Either way it runs in the camera
+thread's pose child process, not in Ember's own.
 
 ## Inputs, outputs, enabling
 
-`realtime_gemini_10.py` calls `create_pose_backend(mediapipe_options=options)` once
-when the camera thread starts, then `pose.detect(frame_bgr, timestamp_ms)` per frame.
+When the camera thread starts, `realtime_gemini_10.py` (`_open_pose`) starts a child
+process with `Remote(partial(ChildPose, <camera.pose_model .task>, allow_npu=...))`
+(`features/vision_process.py`): in Ember's own process pose held Python's GIL and
+delayed the microphone and Gemini I/O, and a crash in the NPU runtime now ends only
+that child. Inside it `ChildPose` calls `create_pose_backend(model_path=...)` once,
+then `detect(frame_bgr, timestamp_ms)` per frame with strictly increasing timestamps
+it makes itself; the camera thread calls `detect(frame)` and gets the landmarks back
+as plain tuples. `allow_npu` is false for `camera.pose_model = "heavy"` (the NPU was
+only checked against the full model) and when the thread restarts a failed child on
+the CPU. On the NPU the checked `pose_landmarker_full` models run whatever .task the
+runtime uses for MediaPipe (lite by default).
 Output is `None` or 33 landmarks with MediaPipe's `x, y, z, visibility, presence`
 (same conventions as `NormalizedLandmark`), so `FallDetector`, face presence, the
 skeleton drawing and the fall toolkit are unchanged. `pose.name` is
 `NPU (RK3588)`, `CPU (MediaPipe)` or `CPU (ONNX Runtime)` (`onnx` below); `pose.device`
-(`NPU`/`CPU`) is shown in the fall toolkit status as `Running on NPU (core pose)`. The
-port (NPU and ONNX) takes the detection, presence and tracking confidences from the
-runtime's `PoseLandmarkerOptions`, so it and its MediaPipe fallback use the same
-thresholds (0.5 each today).
+(`NPU`/`CPU`, sent back with every frame, since the NPU can fail over to the CPU) is
+shown in the fall toolkit status as `Running on NPU (core pose)`. The port (NPU and
+ONNX) takes the detection, presence and tracking confidences from the MediaPipe
+options (`default_mediapipe_options`: 0.5 each), so it and its MediaPipe fallback use
+the same thresholds.
 
 | `BAYMAX_POSE_BACKEND` | Behaviour |
 |---|---|
@@ -35,10 +47,12 @@ The choice is printed once, e.g. `[POSE] Pose backend: CPU (MediaPipe). NPU skip
 not Linux aarch64 (darwin arm64).` or `[POSE] Pose backend: NPU (RK3588) on NPU core 0
 (models from rknn-toolkit2 2.3.2)`, or `NPU skipped: the NPU runtime/driver (...)
 differs from the one the accuracy check ran on (...); re-run convert_rknn.py check`.
-With the NPU, a warning may follow (the NPU is still used): the runtime's
-`pose_landmarker_full.task` holds other weights than the pinned ones the models were
-converted from (e.g. Google changed `latest`), so the NPU and its MediaPipe fallback
-would disagree; with `npu`, also a changed runtime/driver. If the NPU raises during
+With the NPU, a warning may follow (the NPU is still used): with
+`camera.pose_model = "full"`, the runtime's `pose_landmarker_full.task` holds other
+weights than the pinned ones the models were converted from (e.g. Google changed
+`latest`), so the NPU and its MediaPipe fallback would disagree; with `npu`, also a
+changed runtime/driver. The default lite .task is a different model by choice and
+gives no warning. If the NPU raises during
 use, including non-finite (NaN/inf) outputs, the backend logs the error and its
 traceback once and switches to MediaPipe for the rest of the run.
 
@@ -46,7 +60,7 @@ traceback once and switches to MediaPipe for the rest of the run.
 
 | File | Role |
 |---|---|
-| `backend.py` | Backend choice, the MediaPipe CPU backend (the camera thread's former calls), NPU-to-CPU fallback. |
+| `backend.py` | Backend choice, the MediaPipe CPU backend (the camera thread's former calls), NPU-to-CPU fallback, `ChildPose` (the backend inside the vision child process). |
 | `pipeline.py` | MediaPipe Pose Landmarker VIDEO-mode graph in numpy + OpenCV. |
 | `engines.py` | `OnnxEngine` (ONNX Runtime CPU) and `RknnEngine` (`rknnlite`, imported only here, lazily). |
 | `models.py` | Model directory, pinned SHA-256s, manifest. Standard library only. |
@@ -56,8 +70,10 @@ traceback once and switches to MediaPipe for the rest of the run.
 
 ## The models
 
-Both networks come from the same `pose_landmarker_full.task` (float16) the runtime
-uses, so CPU and NPU share weights. The converter checks the SHA-256 of the two
+Both networks come from `pose_landmarker_full.task` (float16): with
+`camera.pose_model = "full"` the runtime's MediaPipe uses the same .task, so CPU and NPU
+share weights; with the default lite, MediaPipe on the CPU (the fallback, and every
+board without the NPU) runs the smaller lite model. The converter checks the SHA-256 of the two
 TFLite files inside the bundle (`models.TFLITE_SHA256`; version 1 and `latest` of the
 .task are different zips of identical TFLite files):
 

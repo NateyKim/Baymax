@@ -60,9 +60,10 @@ block Ember. Each start it:
 4. Never retries a commit that rolled back; skips updating when tracked files
    were edited on the robot. `.env`, recordings and other ignored files are untouched.
 
-Shipping: `git push origin MVP:release`. Undo a bad release: push the last good
-commit with `git push --force origin <good>:release`; robots follow on next start.
-For a rapid-testing robot set `BAYMAX_UPDATE_BRANCH=MVP`. Log lines start with
+Shipping (in this repository, development on `main`): `git push origin main:release`.
+Undo a bad release: push the last good commit with
+`git push --force origin <good>:release`; robots follow on next start.
+For a rapid-testing robot set `BAYMAX_UPDATE_BRANCH=main`. Log lines start with
 `[UPDATE]` in `journalctl --user -u ember-mvp.service`. Existing robots must rerun
 `python3 devops/mvp/install_autostart.py` once to get the pre-start hook. A robot
 updating from a version before the per-platform requirements file is switched by its
@@ -77,8 +78,8 @@ opening without a display, and serving without runtime configuration.
 pip/check failures and timeouts, an update stopped just before the checkout, just after
 it, or during pip, a rollback stopped before switching back or during its reinstall, and
 the per-platform requirements file. The git-based ones are skipped where git is missing,
-so they have not run on Linux aarch64 yet (the Orange Pi had no git: install it there
-and rerun them). The updater tests on Linux aarch64, the updater's rollback on a
+so they have not run on Linux aarch64 yet (the Orange Pi had no git; **0 - Debian
+Prerequisites** now installs it: rerun them there). The updater tests on Linux aarch64, the updater's rollback on a
 robot, a power cut during its checkout (see above) and real Debian service startup,
 desktop integration and cold boots remain pending.
 

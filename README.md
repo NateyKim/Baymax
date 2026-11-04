@@ -1,28 +1,55 @@
-# OPI4 Demo
+# Ember for Orange Pi
 
-Target: **64-bit Debian/DietPi Orange Pi 4 Pro (ARM64/aarch64)**. Branch: `opi4-demo`.
+Ember's v10 MVP runtime (conversation/personality, local eyes, audio cleanup,
+engage/disengage, reminders, audiobooks, app integration, memory and built-in
+fall detection) for the **Orange Pi 4 Pro** and the **Orange Pi 5 Max**: one
+codebase and one dependency file (`Baymax-main/requirements-orange-pi.txt`) for
+both boards. What differs is decided on the board itself at runtime (the NPU,
+fast-core pinning) or by how the board is set up. Live device checks remain
+pending on both boards.
 
-Full v10 MVP demo: conversation/personality, local eyes, audio cleanup,
-engage/disengage, reminders, audiobooks, app integration and built-in fall detection.
-Start with [device setup](Baymax-main/MVP.md) and the
-[shared feature contract](docs/DEMO_DEVICES.md). Live device checks remain pending.
+| | Orange Pi 4 Pro | Orange Pi 5 Max |
+|---|---|---|
+| SoC / CPU | Allwinner A733: 2x Cortex-A76 + 6x Cortex-A55 | Rockchip RK3588: 4x Cortex-A76 + 4x Cortex-A55 |
+| NPU for pose | none: MediaPipe on the CPU | optional: the RK3588 NPU after the on-board conversion and accuracy check; MediaPipe on the CPU otherwise |
+| OS | DietPi (Debian 13) SD image from [OPI4-Flash](devops/opi4-flash/README.md), or Debian 13 | Armbian Debian 13 with the vendor 6.1 kernel (needed only for the NPU) |
+| Setup | the SD image, or [MVP.md](Baymax-main/MVP.md) | [clickables](devops/clickables/README.md) and [ORANGE_PI_SETUP.md](Baymax-main/ORANGE_PI_SETUP.md) |
+| Wi-Fi setup hotspot | optional, installed by hand ([deploy/host](Baymax-main/deploy/host/README.md); not part of the SD image; untested on a board) | no |
+| Fast-core pinning (`BAYMAX_CPU_PINNING=auto`) | off (unmeasured; `on` tries it) | on (measured) |
+| Updates | the image's `ember-update`, following a branch (default `release`) | opt-in `devops/mvp/update.py` (`BAYMAX_UPDATE_BRANCH`, default `release`) |
+
+On both boards pose and face inference run in their own processes
+(`Baymax-main/features/vision_process.py`), pose tracking runs at 10 fps with
+MediaPipe's lite model by default (`camera.pose_model` in `device.toml`; a set-up
+Orange Pi 5 Max NPU runs the checked full model instead), the live view is drawn only
+while someone watches it, and memories are saved while Ember runs. See
+[the board guide](docs/DEMO_DEVICES.md) and [ORANGE_PI_SETUP.md](Baymax-main/ORANGE_PI_SETUP.md).
+
+Where this came from: JoeKojima/Baymax PR #29 (`opi4-demo`, the Orange Pi 4 Pro
+demo), PR #22 (`codex/opi4-flash`, the SD-image builder) and the Orange Pi 5 Max
+branches `orangepi5-npu` and `memory-incremental-saves`, merged in November 2026. This
+repository deliberately diverges from Baymax's `startup-greeting` (LattePanda)
+branch: shared fixes are ported by hand. The x86/LattePanda, macOS, Windows and Docker
+code is still in the tree, unchanged, but is not what this repository targets.
 
 ## Orange Pi 4 Pro SD image
 
 See [OPI4-Flash](devops/opi4-flash/README.md) for a private SD-image builder with
-three first-boot choices: PR to follow, preconfigured Wi-Fi and Gemini key.
-Builds generate their own device credentials; no personalized images are included.
+three first-boot choices: the branch to follow (default `release`), preconfigured
+Wi-Fi and Gemini key. Builds generate their own device credentials; no personalized
+images are included. The image is for the Orange Pi 4 Pro only; the Orange Pi 5 Max
+uses the clickables setup.
 
 ## Included Conversational Ability
 
 Responsive listening and turn-taking, layered on #11. See
 [the feature](Baymax-main/features/conversational_ability/README.md) for echo
 cancellation, noise suppression, brief replies and enablement. Memory Palace
-is separate in PR #13.
+(Baymax PR #13) is separate from v10's conversation memory, which is on here.
 
-# Ember feature reorganization and toolkits
+## Feature organization and toolkits
 
-This branch stacks on PR #7 for Windows, Intel/Apple Silicon macOS, Linux/Orange Pi setup, devices, clickables and local monitoring. PR #11's review diff contains feature organization and callable toolkit behavior. Downloading the whole branch includes the compatibility foundation automatically.
+Baymax PR #11 stacked on PR #7 for Windows, Intel/Apple Silicon macOS, Linux/Orange Pi setup, devices, clickables and local monitoring. PR #11's review diff contains feature organization and callable toolkit behavior. Downloading the whole branch includes the compatibility foundation automatically.
 
 - `Baymax-main/features/` organizes `memory_palace/`, `person_recognition/` and `toolkits/` as sibling namespaces. Memory/person folders reserve integration boundaries; prompt/identity/recall changes are scoped to PR #13.
 - Location/weather uses IPWho/Open-Meteo with clarification, caching and bounded provider errors. `BAYMAX_TOOLKIT_ENABLED=0` disables toolkit declarations/preloading.
@@ -38,4 +65,4 @@ Extract the whole branch and open `devops/clickables` → your OS → **1 - Setu
 - [Clickables](devops/clickables/README.md)
 - [Testing protocol](Baymax-main/TESTING_PROTOCOL.md)
 
-Run `python check_release.py` from `Baymax-main` for separate core/toolkit offline results. Offline success does not establish real-device, live Gemini or provider accuracy, or authorize deployment. No production startup/service is changed by this PR. Deliberately starting the runtime sends microphone/camera data to Gemini and records audio locally; toolkit documentation describes additional provider calls.
+Run `python check_release.py` from `Baymax-main` for separate core/toolkit offline results. Offline success does not establish real-device, live Gemini or provider accuracy, or authorize deployment. The toolkit work changed no production startup/service. Deliberately starting the runtime sends microphone/camera data to Gemini and records audio locally; toolkit documentation describes additional provider calls.

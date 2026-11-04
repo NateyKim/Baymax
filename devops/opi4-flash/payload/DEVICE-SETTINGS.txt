@@ -36,6 +36,8 @@ Files for future maintenance:
 - Git source/branch/update preference: /home/ember/.config/ember/device.json
 - Autostart disabled flag: /home/ember/.config/ember/no-autostart
 - Active key/device configuration: /home/ember/ember-deployment/current/Baymax-main/.env
+- Memory, reminders and logs (kept across updates): /home/ember/ember-deployment/data
+- Downloaded models (kept across updates): /home/ember/ember-deployment/shared
 - Device menu: /usr/local/bin/ember-device-settings
 - Configuration validation: /opt/ember-provision/ember-device-config.py
 - Updater: /usr/local/bin/ember-update

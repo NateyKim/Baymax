@@ -1,17 +1,77 @@
-# Orange Pi 5 Max: Debian 13, XFCE/Xorg (experimental)
+# Orange Pi 5 Max and Orange Pi 4 Pro: Debian 13 (experimental)
 
-This is a native Linux ARM64 CPU profile (optional NPU pose: see below). On an Orange Pi 5 Max with Armbian Debian 13 (vendor kernel 6.1), `requirements-orange-pi.txt` installed (Praat-Parselmouth and miniaudio build from source, about 30 minutes; memory's packages and rknn-toolkit-lite2 joined the file later; at commit e938983 `pip install -r requirements-orange-pi.txt` added them in 55 s with `pip check` clean) and the offline suite passed (`check_release.py` at commit 61c410e: core 352 tests, 15 of them skipped, 0 failures; toolkit 158, 0 skipped). By the counts the 15 skipped are the 14 git-based updater tests (git was not installed on the board) and the off-RK3588 default test, so the updater's tests have not run on the board yet (install git and rerun; confirm the skips with a verbose run). Still to be checked on the board: Ember running live (it has not been started there yet, on the CPU or the NPU: audio, camera, conversation, the live view, the fall toolkit's status; the camera loop's FPS and frame age with the 1-frame camera buffer below; with the NPU: the backend inside Ember end to end), the updater's tests, thermals over a long run, and fall accuracy at home.
+One native Linux ARM64 profile for both boards: the same code and the same
+`requirements-orange-pi.txt`. What differs is detected on the board (the NPU,
+fast-core pinning) or comes from how the board is set up:
+
+| | Orange Pi 4 Pro | Orange Pi 5 Max |
+|---|---|---|
+| CPU | Allwinner A733: 2x Cortex-A76 + 6x Cortex-A55 | RK3588: 4x Cortex-A76 (cpu4-7) + 4x Cortex-A55 (cpu0-3) |
+| Install | the SD image ([OPI4-Flash](../devops/opi4-flash/README.md)), or the steps below on Debian 13 | the steps below (Armbian Debian 13, XFCE/Xorg) |
+| Pose | MediaPipe on the CPU | MediaPipe on the CPU, or the NPU after the optional steps below |
+| `BAYMAX_CPU_PINNING=auto` | not pinned | pinned to the A76s |
+| Wi-Fi setup hotspot | optional, installed by hand ([deploy/host](deploy/host/README.md)) | no |
+
+On the Orange Pi 4 Pro the SD image installs everything below itself (packages,
+Python environment, services, updates that keep memory in
+`~/ember-deployment/data`); the board-specific sections here (pose, pinning, memory)
+apply to it too. Nothing in this guide has been run on an Orange Pi 4 Pro yet.
+
+On an Orange Pi 5 Max with Armbian Debian 13 (vendor kernel 6.1), `requirements-orange-pi.txt` installed (Praat-Parselmouth and miniaudio build from source, about 30 minutes; memory's packages and rknn-toolkit-lite2 joined the file later; at commit e938983 `pip install -r requirements-orange-pi.txt` added them in 55 s with `pip check` clean) and the offline suite passed (`check_release.py` at commit 61c410e: core 352 tests, 15 of them skipped, 0 failures; toolkit 158, 0 skipped). By the counts the 15 skipped are the 14 git-based updater tests (git was not installed on the board) and the off-RK3588 default test, so the updater's tests have not run on the board yet (**0 - Debian Prerequisites** now installs git: rerun; confirm the skips with a verbose run). Those figures predate this repository's merge (see Pose below). Still to be checked on the board: Ember running live (it has not been started there yet, on the CPU or the NPU: audio, camera, conversation, the live view, the fall toolkit's status; the camera loop's FPS and frame age with the 1-frame camera buffer below; with the NPU: the backend inside Ember end to end), the updater's tests, thermals over a long run, and fall accuracy at home.
 
 1. Extract the complete current branch ZIP into a permanent folder on the Pi.
 2. Open devops/clickables/Linux. On a minimal Debian 13 system, run **0 - Debian Prerequisites** first. It lists system libraries/build tools, asks permission, and uses sudo/pkexec for apt installation. It does not install NPU drivers, replace the kernel or configure an audio server. Ensure XFCE desktop audio and a browser already work.
 3. Open **1 - Setup**. It installs private Python 3.12 and automatically selects requirements-orange-pi.txt for Linux aarch64/arm64. Expect a potentially long native build for Praat-Parselmouth. A resolver pass does not prove that compilation will succeed.
-4. Enter your own Gemini key, select/test mic, speaker and camera, and optionally enable **experimental fall detection (CPU, or NPU on a set-up Orange Pi)**. Save. It is off by default and requires a camera. With camera pose tracking on (the default) it reuses Ember's own pose, which can run on the NPU (below).
-5. Open **2 - Monitor**, then **3 - Start Ember**. Ember downloads its pose model (`pose_landmarker_full.task`) on the first camera start. With pose tracking on (the default) the fall toolkit loads no model of its own and the Monitor shows **Running on CPU (core pose)** (or **Running on NPU (core pose)** after the NPU steps below), with actual FPS and inference milliseconds. Only with `camera.pose_tracking = false` does the toolkit's first run download and verify its own model and show **Running on CPU**. Disabled/starting/loading/unavailable/waiting is not a working detector.
+4. Enter your own Gemini key, select/test mic, speaker and camera, and optionally enable **experimental fall detection (CPU, or NPU on a set-up Orange Pi)**. Save. It is off by default and requires a camera. With camera pose tracking on (the default) it reuses Ember's own pose, which can run on the Orange Pi 5 Max's NPU (below). It adds a second fall detector (one fall can give two check-ins), so leave it off unless you are testing it.
+5. Open **2 - Monitor**, then **3 - Start Ember**. Ember downloads its pose model (`pose_landmarker_lite.task` by default; `camera.pose_model` in `/etc/ember/device.toml` picks lite, full or heavy) on the first camera start. With pose tracking on (the default) the fall toolkit loads no model of its own and the Monitor shows **Running on CPU (core pose)** (or **Running on NPU (core pose)** after the NPU steps below), with actual FPS and inference milliseconds. Only with `camera.pose_tracking = false` does the toolkit's first run download and verify its own model and show **Running on CPU**. Disabled/starting/loading/unavailable/waiting is not a working detector.
 6. Use **4 - Stop Ember**. Test device release and restart; keep your evidence for review.
 
 If XFCE opens `.sh` files in an editor, use its file permissions/execution options to run them in a terminal; executing scripts depends on Thunar settings. The current launcher is not a packaged XFCE desktop application. Localized Desktop-folder layouts, USB/CSI camera drivers, user device permissions and sound-server routing can require OS-specific setup.
 
-The prerequisite script is only for Debian 13. It installs curl/certificates, PortAudio, GL/EGL/GLib and sound-file libraries, ALSA plugins, compiler/CMake/pkg-config tools, xdg-utils and XFCE Terminal. It also offers Firefox ESR in the displayed package list when no common browser command is found. This system-package step is separate from the private Python environment and requires administrator authorization. NPU support is not installed by it (see Optional: pose on the NPU). A 64-bit OS and native ARM64 Python are required; 32-bit armhf is not supported by this profile.
+The prerequisite script is only for Debian 13. It installs curl/certificates, git (for `devops/mvp/update.py`), PortAudio, GL/EGL/GLib and sound-file libraries, ALSA plugins, compiler/CMake/pkg-config tools, xdg-utils and XFCE Terminal. It also offers Firefox ESR in the displayed package list when no common browser command is found. This system-package step is separate from the private Python environment and requires administrator authorization. NPU support is not installed by it (see Optional: pose on the NPU). A 64-bit OS and native ARM64 Python are required; 32-bit armhf is not supported by this profile.
+
+## Pose: its own process, 10 fps
+
+The camera thread captures at 640x480 and runs pose at 10 fps (`FALL_DETECTION_FPS`;
+fall detection keeps about 0.5 s of history, `FALL_HISTORY_FRAMES = 6`). Pose runs in
+a child process (`features/vision_process.py`, `python -m features.vision_process`):
+in Ember's own process MediaPipe held Python's GIL, so on the Orange Pi 4 Pro replies
+came up to a minute late and the microphone overflowed about every 7 s. Only frames
+go in and landmarks come back. In that child, `features/pose/backend.py` picks the
+backend and logs it to Ember's log:
+
+- `camera.pose_model = "lite"` (the default) or `"full"`: on an Orange Pi 5 Max that
+  passed the NPU steps below, the NPU runs the **checked full model**
+  (`[POSE] Pose backend: NPU (RK3588) ...`). Everywhere else, including the Orange Pi
+  4 Pro, MediaPipe runs the chosen `.task` on the CPU
+  (`[POSE] Pose backend: CPU (MediaPipe). NPU skipped: <reason>`).
+- `"heavy"`: always MediaPipe on the CPU (the NPU was only checked against full).
+- If the pose process dies or fails, Ember restarts it once on the CPU
+  (`[CAM] Pose process failed (...); restarting it on the CPU.`); a second failure
+  leaves video only until Ember restarts. Video to Gemini continues throughout. A pose
+  process that hangs without exiting is not detected yet.
+
+Eye-contact greetings (`BAYMAX_PRESENCE_GREETING=1`, off by default) run face
+landmarks in a second child process the same way. The annotated live view is drawn
+only while someone watches it.
+
+**Measuring CPU:** Ember's work is split over its own process and these children, so
+add them up. For example, over one minute:
+
+```bash
+EMBER=$(pgrep -o -f 'run_mvp.py|run_pc.py')                     # Ember's own process
+PIDS=$(printf '%s\n' "$EMBER" $(pgrep -P "$EMBER") | paste -sd,)  # plus its pose/face children
+top -b -d 60 -n 2 -p "$PIDS" | tail -n 8                           # the second sample: last minute's %CPU
+```
+
+The Orange Pi 5 Max figures below and in features/pose were all measured **before this
+repository's merge**: pose in Ember's own process, the full model, 15 fps. For the
+whole system (pose, audio cleanup, the Gemini link and the eyes), the orangepi5-npu
+work reported about 130.7% of one core for mvp-v10, 91.8% with pose on the CPU and
+42.7% with pose on the NPU (with the fall toolkit also on: 217% before that work, 42.6%
+after, with the NPU). They
+are not the current configuration (lite model, 10 fps, pose in a child process) and
+need to be measured again, summed over the process tree as above.
 
 ## Fast cores
 
@@ -20,12 +80,21 @@ Ember keeps itself on the fast ones (it prints `[CPU] Running on the fast cores
 4,5,6,7`): MediaPipe pose takes about 43 ms a frame on an A76 and over 200 ms on an
 A55. `run_mvp.py` (the MVP service) and `run_pc.py` (**3 - Start Ember**) do this first
 thing, before the eyes, the network watch and numpy's thread pool start, and also move
-any thread that already runs, so every thread of Ember stays on the A76s. Set `BAYMAX_CPU_PINNING=off` in `.env` to
-let Linux use all eight. Only Linux on 64-bit ARM with fast and slow cores is affected:
-Windows, macOS and x86 Linux PCs (including Intel/AMD hybrid CPUs) are left alone. On
-this board the camera also keeps only its newest frame (a V4L2 buffer of one); that is
-not measured with a camera yet: check that the FPS stays near 15 (the Monitor shows it
-with Setup's fall-detection checkbox on; otherwise read the FPS overlay in the live view).
+any thread that already runs, so every thread of Ember stays on the A76s. The pose
+and face child processes inherit it. `BAYMAX_CPU_PINNING` in `.env`:
+
+- `auto` (default): pin only on an RK3588 (Orange Pi 5 / 5 Max), where it was measured.
+- `on`: pin on any Linux ARM64 board with fast and slow cores. On the Orange Pi 4 Pro
+  that puts Ember and both children on its two A76s; this has not been measured, so
+  `auto` leaves the 4 Pro unpinned. Use `on` there only to compare
+  (`cat /sys/devices/system/cpu/cpu*/cpu_capacity` shows which cores are fast).
+- `off`: never pin; Linux uses every core.
+
+Windows, macOS and x86 Linux PCs (including Intel/AMD hybrid CPUs) are never pinned.
+On both Orange Pis the camera also keeps only its newest frame (a V4L2 buffer of
+one); that is not measured with a camera yet: check that the FPS stays near 10 (the
+Monitor shows it with Setup's fall-detection checkbox on; otherwise read the FPS
+overlay in the live view).
 
 ## Memory
 
@@ -33,7 +102,8 @@ Ember remembers past conversations here as on the robot image. While Ember runs,
 after every 20 user turns or 3 minutes with nobody talking, and again when it stops,
 Gemini summarises the conversation since the last save (the same step on every
 platform) and the summary lines are stored on the board in `chroma_store/` (in
-`BAYMAX_DATA_DIR`, by default next to the code). A crash or power cut loses only the
+`BAYMAX_DATA_DIR`, by default next to the code; on the Orange Pi 4 Pro SD image
+`~/ember-deployment/data`, which updates keep). A crash or power cut loses only the
 conversation since the last save. On each turn the closest memories are looked up and
 given to Gemini, and the 50 newest are part of its instructions.
 `requirements-orange-pi.txt` installs ChromaDB, ONNX Runtime and `tokenizers` for this,
@@ -49,8 +119,9 @@ store`. To fetch it beforehand, run `.venv/bin/python semantic_embedder.py --dow
 from `Baymax-main`. If the download fails (no network), memory is off for that session
 and the download is tried again on the next start.
 
-Measured on the Orange Pi 5 Max (commit e938983, 500 memories, a 30-word query of
-about 36 tokens):
+Measured on the Orange Pi 5 Max (commit e938983, before this repository's merge: pose
+in Ember's own process, full model, 15 fps; 500 memories, a 30-word query of about 36
+tokens):
 - **A lookup:** 34 ms of CPU, ready in 19 ms with its two threads on two fast cores
   (39 ms on one fast core, about 140 ms on a slow A55). It runs once per user turn,
   in the background, while the person is still talking.
@@ -75,15 +146,18 @@ session summaries can't be saved.
 
 ## Optional: pose on the NPU
 
+Orange Pi 5 / 5 Max (RK3588) only; the Orange Pi 4 Pro has no NPU that Ember uses.
 Ember runs MediaPipe Pose on the CPU unless the RK3588's NPU is ready; then the camera
-thread's pose (fall detection, face presence, the live view and the fall toolkit) uses
-the NPU with the same model weights ([features/pose](features/pose/README.md)). Nothing
-changes until all of the steps below are done, and any failure falls back to the CPU.
+thread's pose (fall detection, face presence, the live view and the fall toolkit) runs
+on the NPU, in the pose child process, with the checked full model
+([features/pose](features/pose/README.md)) whenever `camera.pose_model` is lite (the
+default) or full; heavy stays on the CPU. Nothing changes until all of the steps below
+are done, and any failure falls back to the CPU.
 Steps 1-5 were run on an Orange Pi 5 Max with Armbian Debian 13 (vendor kernel
 6.1.172, RKNPU 0.9.8) on 2026-10-28, with Ember stopped, including step 5's paced
 `--fps 15` and `--empty` runs; see features/pose/VALIDATION.md for the results. Step 6
 with Ember running is still pending on the board (the backend choice was confirmed
-there by calling `create_pose_backend`).
+there by calling `create_pose_backend`, in-process, before pose moved to its own process).
 The rknn converter prints a few `E RKNN: ... Unkown op target: 0` lines while building
 and the runtime a `query RKNN_QUERY_INPUT_DYNAMIC_RANGE error` warning when it loads a
 model: both are harmless (the check and the models are fine).
@@ -163,20 +237,23 @@ model: both are harmless (the check and the models are fine).
    median 16.2 ms with a person in view, 28.5 ms with nobody in view, `--empty`, against
    about 40-44 ms for MediaPipe) and process CPU is 12-20% of a core instead of 70-77%.
    Process CPU counts every thread while each frame's pose runs, not between frames.
-6. **Confirm it is active.** Start Ember. The log shows
+6. **Confirm it is active.** Start Ember. The log (the pose process writes to Ember's) shows
    `[POSE] Pose backend: NPU (RK3588) on NPU core 0 (...)`; otherwise
    `[POSE] Pose backend: CPU (MediaPipe). NPU skipped: <reason>`. If the `librknnrt` or
    rknpu driver version changed since the check (e.g. a kernel update that brought a new
    rknpu driver) the reason says so: re-run the check. A kernel update that keeps both
    versions keeps the NPU without a new check; re-running the check after any kernel
-   update does no harm. A `[POSE] Warning:` line after the NPU line means the downloaded
-   MediaPipe model changed (see the pose README). With the fall toolkit enabled the
-   Monitor shows **Running on NPU (core pose)** and the inference time, the paced figure
-   (about 16-29 ms, higher than the benchmark's back-to-back number). If the reason is
+   update does no harm. With `camera.pose_model = "full"`, a `[POSE] Warning:` line
+   after the NPU line means the downloaded MediaPipe model changed (see the pose
+   README). With the fall toolkit enabled the Monitor shows **Running on NPU (core
+   pose)** and the inference time: the paced figure (measured at 15 fps before the
+   merge: about 16-29 ms, higher than the benchmark's back-to-back number), now plus
+   the round trip to the pose process. If the reason is
    `NPU init failed (... init_runtime ...)` and the check passed as another user, the
    user running Ember lacks access to the NPU's nodes: see step 1.
 7. **Force the CPU** at any time with `BAYMAX_POSE_BACKEND=cpu` (or `mediapipe`) in
-   `Baymax-main/.env` (or delete `.models/pose_npu`). Any other unrecognised value also
+   `Baymax-main/.env` (or delete `.models/pose_npu`; or set `camera.pose_model = "heavy"`).
+   The pose process inherits Ember's environment. Any other unrecognised value also
    means the CPU, with a warning. `BAYMAX_POSE_NPU_CORE=1` moves pose to another NPU core.
 
 See [fall toolkit](features/toolkits/FALL_DETECTION.md) for model/algorithm provenance, synthetic checks, known limits and the real-device test protocol. Full conversation/fall integration must be measured on the board before approval or deployment.

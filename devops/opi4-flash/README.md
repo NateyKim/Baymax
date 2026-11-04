@@ -5,8 +5,9 @@ The image installs Ember, a headless XFCE desktop, AnyDesk and a progress page.
 No running Ember device is required to prepare it.
 
 This is based on a DietPi Debian 13 image and the SD provisioning work tested on
-one Orange Pi 4 Pro. It is not an image for the Orange Pi 4, 4 LTS, 5 or Raspberry
-Pi. The reusable builder has offline checks; a fresh-card boot of this published
+one Orange Pi 4 Pro. It is not an image for the Orange Pi 4, 4 LTS, 5 / 5 Max or
+Raspberry Pi: the Orange Pi 5 Max is set up with the clickables instead
+([ORANGE_PI_SETUP.md](../../Baymax-main/ORANGE_PI_SETUP.md)). The reusable builder has offline checks; a fresh-card boot of this published
 version and eye-matrix hardware testing remain pending.
 
 ## Three choices
@@ -16,17 +17,19 @@ Run the private configurator or copy `settings.example.json` to
 
 ```json
 {
-  "pr": 20,
+  "branch": "release",
   "wifi": {"ssid": "YOUR WIFI NAME", "password": ""},
   "gemini_api_key": ""
 }
 ```
 
-- **PR:** a positive PR number in `JoeKojima/Baymax`. Startup fetches
-  `refs/pull/NUMBER/head`, installs and checks the release, then promotes it.
-  The same PR is bundled as the first-install fallback if Git is temporarily
-  unavailable. Choosing an incompatible PR can fail installation; it does not
-  convert arbitrary PRs into runnable Ember versions. PR #20 is the initial target.
+- **Branch:** a branch of this repository (`REPOSITORY` in `image_settings.py`,
+  `https://github.com/JoeKojima/Ember-OrangePi.git`), `release` by default, the
+  same default as `devops/mvp/update.py`. Startup fetches it, installs and checks the
+  release, then promotes it. The same branch is bundled as the first-install fallback
+  if Git is temporarily unavailable. Choosing an incompatible branch can fail
+  installation. Older settings files with `"pr": NUMBER` still work and follow
+  `refs/pull/NUMBER/head` of this repository (not of JoeKojima/Baymax).
 - **Wi-Fi:** one SSID and password, installed before first boot. A blank password
   means open Wi-Fi. WPA passwords must be 8–63 UTF-8 bytes or a 64-digit hex PSK.
   Captive-portal sign-in is not automated. Use a reachable private network for
@@ -74,8 +77,8 @@ sudo chown "$USER:$(id -gn)" output output/ember-opi4.img \
 On Ubuntu 26.04 and other newer releases, install `qemu-user-binfmt` instead of
 `qemu-user-static binfmt-support`. `/proc/sys/fs/binfmt_misc/qemu-aarch64` must exist.
 
-Confirm `python3 --version` is at least 3.12. The interactive configurator defaults
-to PR #20. Enter `-` at the Wi-Fi password prompt for open Wi-Fi, or at the key
+Confirm `python3 --version` is at least 3.12. The interactive configurator asks for
+the branch (default `release`). Enter `-` at the Wi-Fi password prompt for open Wi-Fi, or at the key
 prompt to leave manual Setup. Enter preserves an existing secret. To rebuild,
 change the settings and choose a new `--output` directory; existing builds are
 never overwritten. `--cache` can select an existing verified asset cache.
@@ -84,13 +87,14 @@ The first build is slow (often an hour or more under emulation): it installs eve
 system package into a cached base image, `.cache/packages-<key>.img`. Later cards
 reuse it and only add their settings and the Ember release; Python wheels built
 under emulation are cached in `.cache/uv`. Packages PyPI only ships as source
-(praat-parselmouth, miniaudio) download prebuilt from the `opi4-wheels-1` release,
-so a new PC skips that compile; a version that no longer matches still compiles.
+(praat-parselmouth, miniaudio) download prebuilt from the `opi4-wheels-1` release of
+JoeKojima/Baymax (the repository this one came from; `assets.json` pins each wheel's
+SHA-256), so a new PC skips that compile; a version that no longer matches still compiles.
 Changing the non-wheel `assets.json` entries,
 the package stage of `build_linux.sh` or `payload/system-packages.txt` builds a new base.
 
 The builder verifies all downloads against `assets.json`, bundles the selected
-PR, injects the three choices and generated credentials, validates firmware and
+branch, injects the three choices and generated credentials, validates firmware and
 private-file permissions, runs the offline provisioning tests and checks the
 filesystem. It only mounts a **regular image file**. It has no physical-disk
 writer. Output:
@@ -98,7 +102,7 @@ writer. Output:
 - `output/ember-opi4.img` — the private boot image.
 - `output/device-access.private.json` — hostname, user `ember`, and generated
   Linux/sudo and AnyDesk passwords. These passwords are different.
-- `output/ready-image.json` — image SHA256/size, selected PR/ref/commit and
+- `output/ready-image.json` — image SHA256/size, selected repository/ref/commit and
   non-secret build metadata.
 
 Upstream DietPi's URL can be updated in place. A checksum mismatch stops the build;
@@ -133,23 +137,29 @@ They are not redistributed in this repository.
    and restart; the launcher stops rather than guesses. No camera permits audio-only
    operation. A saved disabled camera stays disabled.
 
-The builder has already installed the system packages and run the selected PR's
-complete offline release gate, including the pinned v10 native audio/eye/audiobook
-dependencies omitted by the current Orange Pi profile. First boot enables services,
-sets the AnyDesk password and checks Git. Only if the selected PR has new commits
-does it install that release, downloading any changed Python packages.
+The builder has already installed the system packages and the selected branch's
+Python packages from its `Baymax-main/requirements-orange-pi.txt` (audio cleanup, eyes,
+audiobooks, wake words and memory included; the only dependency list), checked that
+the native ones import, and run its complete offline release gate. First boot enables
+services, sets the AnyDesk password and checks Git. Only if the selected branch has
+new commits does it install that release, downloading any changed Python packages.
+On its first start Ember downloads its pose model and the memory model (about 90 MB
+from huggingface.co); both are kept for later releases.
 No extra microphone/camera streams are opened by hardware enumeration or tests.
 
 The conversation service starts **`run_mvp.py`**, which wraps the same v10
 conversation in `run_pc.py` with saved-device readiness, single-instance handling,
-the eye lifecycle and the selected PR's MVP defaults. PR #20 currently defaults
-to 400 ms turn-end silence, interruptions off, the wait cue off and voice analysis
-off. Existing `.env` overrides still win; for example
-`BAYMAX_TURN_END_SILENCE_MS=600` is a device-local timing choice, not a different PR.
+the eye lifecycle and `run_mvp.py`'s MVP defaults: 400 ms turn-end silence,
+interruptions off, the wait cue off, voice analysis off and at most 10 s for saving
+memories when Ember stops. Existing `.env` overrides still win: a `BAYMAX_TURN_END_SILENCE_MS` saved on a
+board (for example 600 from an earlier test) replaces the 400 ms default there.
 No connected eye board is required for conversation; physical eyes and their
 serial port must be configured/verified separately. v10's built-in pose/fall
-settings come from `/etc/ember/device.toml`; its optional CPU fall toolkit is a
-separate setting and should not be mistaken for that built-in detector.
+settings come from `/etc/ember/device.toml`; its optional fall toolkit is a separate
+setting (it reuses the built-in pose but is a second detector) and should not be
+mistaken for that built-in detector. Pose runs on the CPU here (this board has no NPU
+that Ember uses) in its own process, and Ember is not pinned to the fast cores
+(`BAYMAX_CPU_PINNING=auto`; see ORANGE_PI_SETUP.md).
 
 ## Wipe, reflash and test a fresh card
 
@@ -161,7 +171,7 @@ not a secure erase of old secrets. Back up anything needed from the card first.
 1. Shut down the board (`sudo poweroff`), wait for shutdown, unplug power and
    remove the microSD. Insert it into the PC through a USB card reader. A USB
    reader is the flashing adapter; this guide boots the board from microSD.
-2. To change PR, Wi-Fi or key, run the configurator and builder above with a new
+2. To change branch, Wi-Fi or key, run the configurator and builder above with a new
    output directory. Otherwise reuse the existing private image. Keep its private
    access file; reflashing the same image restores that image's credentials.
 3. In the image writer, select `ember-opi4.img` (or your existing personalized
@@ -169,11 +179,11 @@ not a secure erase of old secrets. Back up anything needed from the card first.
    Everything on the selected card is erased. Cancel Windows prompts to format
    Linux partitions, then safely eject the reader.
 4. Follow **Flash and first boot** above with internet and the configured Wi-Fi
-   available. Record the setup page completing, the selected Git PR/commit,
+   available. Record the setup page completing, the selected Git branch/commit,
    AnyDesk access and an audible multi-turn conversation. Confirm the intended
    400 ms timing and enabled built-in pose/fall settings in Setup/settings;
    restored device-local overrides can change those defaults.
-5. With PR #21 integrated into PR #20, test "Ember disengage", then "Ember
+5. Test "Ember disengage", then "Ember
    engage". Disengage withholds Gemini-bound microphone audio while an offline
    wake listener runs; camera frames and existing local recordings continue.
    Test fall check-ins with safe recorded/synthetic input separately.
@@ -181,9 +191,9 @@ not a secure erase of old secrets. Back up anything needed from the card first.
    conversation starts again. Record the installed commit; unchanged source can
    report "already installed". Verify eyes separately when connected.
 
-An existing image can contain an older bundled PR revision. Its boot updater
-fetches the latest selected PR when GitHub is reachable; the image file itself
-does not change when that PR is updated. Without Git access, a fresh card can
+An existing image can contain an older bundled revision. Its boot updater
+fetches the latest commit of the selected branch when GitHub is reachable; the image
+file itself does not change when that branch is updated. Without Git access, a fresh card can
 install its older bundle, so check the installed commit before judging a test.
 
 ## Updates, recovery and data flows
@@ -191,7 +201,10 @@ install its older bundle, so check the installed commit before judging a test.
 Automatic updates run on boot. Packages and tests are installed in a separate
 release directory before switching `~/ember-deployment/current`. The existing
 `.env` survives a release update; the original key preset is used only for the
-first release. Installer failures keep an existing working release. A runtime
+first release. Memory, reminders and logs live in `~/ember-deployment/data`
+(`BAYMAX_DATA_DIR`, added to an older board's `.env` on its next update) and
+downloaded models in `~/ember-deployment/shared`, so a new release keeps them. Data an
+older card kept inside a release folder is not moved there. Installer failures keep an existing working release. A runtime
 failure after promotion is not an automatic rollback; select the previous release
 and restart if needed. Retain the previous release and back up private settings.
 
@@ -210,9 +223,11 @@ page or ping alone does not establish a working live conversation.
 
 Preparation contacts the listed asset hosts, GitHub, Debian and Python package
 hosts. First boot contacts GitHub, plus Python package/model hosts for a newer
-release, and AnyDesk; remote sessions use AnyDesk's service.
+release, and AnyDesk; remote sessions use AnyDesk's service. Ember's first start
+downloads the pose model (storage.googleapis.com) and the memory model
+(huggingface.co).
 Deliberately starting Ember sends audio/video to Google and the runtime may store
-recordings locally. The chosen PR's toolkit documentation describes its additional
+recordings locally. The chosen release's toolkit documentation describes its additional
 provider calls. These scripts do not configure caregiver alerts.
 
 ## Validation
