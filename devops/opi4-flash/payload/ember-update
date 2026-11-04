@@ -7,8 +7,9 @@ export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
 if [ -d /opt/ember-provision/wheels ]; then export UV_FIND_LINKS=/opt/ember-provision/wheels; fi
 BASE="$HOME/ember-deployment"
 DEFAULT_BRANCH='image-release'
-DEFAULT_REPOSITORY='https://github.com/JoeKojima/Baymax.git'
-mkdir -p "$BASE/releases" "$BASE/logs"
+DEFAULT_REPOSITORY='https://github.com/JoeKojima/Ember-OrangePi.git'  # as image_settings.REPOSITORY
+# data: memory, reminders and logs (BAYMAX_DATA_DIR); shared: downloaded models. Both outlive releases.
+mkdir -p "$BASE/releases" "$BASE/logs" "$BASE/data" "$BASE/shared"
 exec >>"$BASE/logs/update.log" 2>&1
 exec 9>"$BASE/update.lock"
 flock -n 9 || exit 0
@@ -55,6 +56,14 @@ fi
 if [ ! -d "$RELEASE" ]; then
   git -C "$BASE/source" worktree add --detach "$RELEASE" "$SHA"
 fi
+# Models Ember downloads on first use (memory's MiniLM, about 90 MB; the wake-word model;
+# .models) are kept once for every release instead of downloaded again after each update.
+for NAME in all-MiniLM-L6-v2-onnx models .models; do
+  mkdir -p "$BASE/shared/$NAME"
+  if [ ! -e "$RELEASE/Baymax-main/$NAME" ] && [ ! -L "$RELEASE/Baymax-main/$NAME" ]; then
+    ln -s "$BASE/shared/$NAME" "$RELEASE/Baymax-main/$NAME"
+  fi
+done
 # Code-only update: share the working environment instead of reinstalling every package.
 # shortcut: the shared .venv lives in an older release folder, so never delete release folders.
 CURRENT=$(readlink -f "$BASE/current" 2>/dev/null || true)
@@ -74,9 +83,10 @@ if [ ! -x "$PYTHON" ]; then
   PYTHON=$(uv python find --managed-python 3.12)
 fi
 "$PYTHON" "$RELEASE/devops/clickables/bootstrap.py" setup --uv "$HOME/.local/bin/uv" --install-only
+# Every package comes from the release's Baymax-main/requirements-orange-pi.txt (bootstrap.py);
+# check that the native ones the v10 runtime needs import on this board.
 if grep -q 'realtime_gemini_10.py' "$RELEASE/Baymax-main/run_pc.py"; then
-  CC=gcc CXX=g++ uv pip install --python "$RELEASE/Baymax-main/.venv/bin/python" -r /opt/ember-provision/ember-v10-requirements.txt
-  "$RELEASE/Baymax-main/.venv/bin/python" -c 'from pywebrtc_audio import AudioProcessor; AudioProcessor(sample_rate=48000); import pyfirmata2, miniaudio, vosk'
+  "$RELEASE/Baymax-main/.venv/bin/python" -c 'from pywebrtc_audio import AudioProcessor; AudioProcessor(sample_rate=48000); import pyfirmata2, miniaudio, vosk, chromadb, onnxruntime, tokenizers'
 fi
 if [ -f "$BASE/current/Baymax-main/.env" ] && [ "$(readlink -f "$BASE/current")" != "$RELEASE" ]; then
   cp "$BASE/current/Baymax-main/.env" "$RELEASE/Baymax-main/.env"
@@ -85,8 +95,12 @@ if [ ! -f "$RELEASE/Baymax-main/.env" ]; then
   if [ -f "$HOME/.config/ember/initial.env" ]; then
     cp "$HOME/.config/ember/initial.env" "$RELEASE/Baymax-main/.env"
   else
-    printf 'GOOGLE_API_KEY=\nBAYMAX_CAMERA_DEVICE=none\n' >"$RELEASE/Baymax-main/.env"
+    printf 'GOOGLE_API_KEY=\nBAYMAX_CAMERA_DEVICE=none\nBAYMAX_DATA_DIR=%s\n' "$BASE/data" >"$RELEASE/Baymax-main/.env"
   fi
+fi
+# Older boards' .env has no data folder: their memory would stay in each release folder.
+if ! grep -q '^BAYMAX_DATA_DIR=' "$RELEASE/Baymax-main/.env"; then
+  printf '\nBAYMAX_DATA_DIR=%s\n' "$BASE/data" >>"$RELEASE/Baymax-main/.env"
 fi
 chmod 600 "$RELEASE/Baymax-main/.env"
 ln -sfn "$RELEASE" "$BASE/current.next"

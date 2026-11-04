@@ -7,8 +7,9 @@ import re
 import tempfile
 from urllib.parse import urlsplit
 
-DEFAULTS = {'repository': 'https://github.com/JoeKojima/Baymax.git',
-            'branch': 'refs/pull/20/head', 'auto_update': True}
+# Same repository as image_settings.REPOSITORY; release is also devops/mvp/update.py's default.
+DEFAULTS = {'repository': 'https://github.com/JoeKojima/Ember-OrangePi.git',
+            'branch': 'release', 'auto_update': True}
 
 
 def validate(values):

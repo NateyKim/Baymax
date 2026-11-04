@@ -133,7 +133,6 @@ for parent, directories, files in os.walk(python_root):
             os.chmod(path, path.stat().st_mode & ~0o022)
 copy('ember-provision', '/usr/local/sbin/ember-provision', 0o755)
 copy('ember-hardware.py', '/opt/ember-provision/ember-hardware.py')
-copy('ember-v10-requirements.txt', '/opt/ember-provision/ember-v10-requirements.txt')
 copy('system-packages.txt', '/opt/ember-provision/system-packages.txt')
 for wheel in sorted(payload.glob('*.whl')):
     copy(wheel.name, '/opt/ember-provision/wheels/' + wheel.name)
@@ -160,7 +159,9 @@ image_directory(home)
 if (root / 'etc/skel').is_dir():
     shutil.copytree(root / 'etc/skel', home, dirs_exist_ok=True)
 write('/home/ember/.config/ember/device.json', json.dumps(source(settings), indent=2) + '\n', 0o600)
-write('/home/ember/.config/ember/initial.env', 'GOOGLE_API_KEY=' + json.dumps(settings['gemini_api_key']) + '\nBAYMAX_CAMERA_DEVICE=\n', 0o600)
+# BAYMAX_DATA_DIR: memory, reminders and logs outside the release folders, so updates keep them.
+write('/home/ember/.config/ember/initial.env', 'GOOGLE_API_KEY=' + json.dumps(settings['gemini_api_key'])
+      + '\nBAYMAX_CAMERA_DEVICE=\nBAYMAX_DATA_DIR=/home/ember/ember-deployment/data\n', 0o600)
 for name in ['ember.service', 'ember-settings.service']:
     copy(name, '/home/ember/.config/systemd/user/' + name)
     link = home / '.config/systemd/user/default.target.wants' / name

@@ -67,7 +67,8 @@ class UpdaterTests(unittest.TestCase):
             config.mkdir(parents=True)
             (config / 'device.json').write_text(json.dumps({
                 'repository': 'https://example.com/Ember.git', 'branch': 'refs/pull/27/head', 'auto_update': True}))
-            seed = 'GOOGLE_API_KEY="test-private-key"\nBAYMAX_CAMERA_DEVICE=none\n'
+            seed = ('GOOGLE_API_KEY="test-private-key"\nBAYMAX_CAMERA_DEVICE=none\n'
+                    f'BAYMAX_DATA_DIR={base}/data\n')
             (config / 'initial.env').write_text(seed)
             bundle = home / 'bundle-source.json'
             bundle.write_text(json.dumps({'repository': 'https://example.com/Ember.git',
@@ -101,6 +102,11 @@ esac
                 self.assertEqual(result.returncode, 0)
                 self.assertEqual(active.read_text(), seed)
                 self.assertEqual(active.stat().st_mode & 0o777, 0o600)
+                self.assertTrue((base / 'data').is_dir())
+                for name in ('all-MiniLM-L6-v2-onnx', 'models', '.models'):   # downloads kept across releases
+                    link = base / 'current/Baymax-main' / name
+                    self.assertTrue(link.is_symlink(), name)
+                    self.assertEqual(link.resolve(), (base / 'shared' / name).resolve())
             else:
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse(active.exists())
@@ -118,6 +124,7 @@ esac
             old_venv = base / 'releases/old/Baymax-main/.venv'
             old_venv.mkdir(parents=True)
             (old_venv / '.ember-ready.json').write_text('{}')
+            (base / 'releases/old/Baymax-main/.env').write_text('GOOGLE_API_KEY="k"')  # an older board's .env
             (base / 'current').symlink_to(base / 'releases/old')
             (base / 'source/.git').mkdir(parents=True)
             config = home / '.config/ember'
@@ -153,6 +160,9 @@ esac
             self.assertEqual(subprocess.run(['bash', str(target)], timeout=10).returncode, 0)
             new_venv = base / 'releases/new/Baymax-main/.venv'
             self.assertEqual((base / 'current').resolve(), (base / 'releases/new').resolve())
+            # The updated release keeps the key and gains the shared data folder.
+            self.assertEqual((base / 'releases/new/Baymax-main/.env').read_text(),
+                             f'GOOGLE_API_KEY="k"\nBAYMAX_DATA_DIR={base}/data\n')
             return new_venv.is_symlink(), (new_venv / 'fresh').exists()
 
     def test_code_only_update_reuses_the_installed_environment(self):

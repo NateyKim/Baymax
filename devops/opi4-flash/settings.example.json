@@ -1,5 +1,5 @@
 {
-  "pr": 20,
+  "branch": "release",
   "wifi": {
     "ssid": "YOUR WIFI NAME",
     "password": ""

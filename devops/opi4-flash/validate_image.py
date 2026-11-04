@@ -17,7 +17,8 @@ assert 'ember:x:1001:1001:' in (root / 'etc/passwd').read_text()
 assert 'AUTO_SETUP_NET_WIFI_ENABLED=1' in (root / 'boot/dietpi.txt').read_text()
 assert (root / 'etc/wpa_supplicant/wpa_supplicant.conf').read_text() == supplicant(settings['wifi'])
 assert json.loads((root / 'home/ember/.config/ember/device.json').read_text()) == source(settings)
-assert (root / 'home/ember/.config/ember/initial.env').read_text() == 'GOOGLE_API_KEY=' + json.dumps(settings['gemini_api_key']) + '\nBAYMAX_CAMERA_DEVICE=\n'
+assert (root / 'home/ember/.config/ember/initial.env').read_text() == ('GOOGLE_API_KEY=' + json.dumps(settings['gemini_api_key'])
+        + '\nBAYMAX_CAMERA_DEVICE=\nBAYMAX_DATA_DIR=/home/ember/ember-deployment/data\n')
 bundle = json.loads((root / 'opt/ember-provision/bundle-source.json').read_text())
 assert bundle['branch'] == source(settings)['branch']
 for name in ['etc/ember/credentials.json', 'boot/dietpi.txt', 'boot/dietpi-wifi.txt',
@@ -34,7 +35,6 @@ assert (root / 'opt/ember-python/python/bin/python3.12').stat().st_uid == 0
 assert 'Driver "dummy"' in (root / 'etc/X11/xorg.conf.d/20-ember-virtual.conf').read_text()
 assert (root / 'usr/local/bin/ember-device-settings').is_file()
 assert (root / 'opt/ember-provision/ember-hardware.py').is_file()
-assert (root / 'opt/ember-provision/ember-v10-requirements.txt').is_file()
 assert (root / 'home/ember/.config/ember/initial.env').stat().st_uid == 1001
 assert (root / 'home/ember/.local/share/applications/Ember-Device-Settings.desktop').is_file()
 for unit in ['ember-provision.service', 'ember-update.service', 'ember-status.service']:

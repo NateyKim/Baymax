@@ -5,15 +5,31 @@ import re
 import shlex
 from pathlib import Path
 
+# The repository every image follows. Its name is the owner's choice: keep this,
+# payload/ember-device-config.py (DEFAULTS) and payload/ember-update (DEFAULT_REPOSITORY)
+# in step if it changes.
+REPOSITORY = 'https://github.com/JoeKojima/Ember-OrangePi.git'
+
+
+def valid_branch(branch):
+    """The same branch rule as payload/ember-device-config.py, which the board applies."""
+    return (isinstance(branch, str) and re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_./-]*', branch) is not None
+            and '..' not in branch and not branch.endswith(('/', '.', '.lock')) and '//' not in branch
+            and not any(part.startswith('.') for part in branch.split('/')))
+
 
 def validate(value):
-    if not isinstance(value, dict) or set(value) - {'access_password'} != {'pr', 'wifi', 'gemini_api_key'}:
-        raise ValueError('Choose exactly pr, wifi and gemini_api_key (access_password is optional).')
+    follow = set(value) & {'branch', 'pr'} if isinstance(value, dict) else set()
+    if len(follow) != 1 or set(value) - {'access_password'} - follow != {'wifi', 'gemini_api_key'}:
+        raise ValueError('Choose branch (or the older pr), wifi and gemini_api_key (access_password is optional).')
     access = value.get('access_password')
     if access is not None and (not isinstance(access, str) or not 8 <= len(access) <= 64
                                or any(c.isspace() or ord(c) < 32 for c in access)):
         raise ValueError('access_password must be 8-64 characters without spaces.')
-    if type(value['pr']) is not int or value['pr'] < 1:
+    if 'branch' in value and not valid_branch(value['branch']):
+        raise ValueError('branch must be a valid Git branch name, such as release.')
+    # Older private settings name a pull request instead of a branch.
+    if 'pr' in value and (type(value['pr']) is not int or value['pr'] < 1):
         raise ValueError('pr must be a positive pull-request number.')
     wifi = value['wifi']
     if not isinstance(wifi, dict) or set(wifi) != {'ssid', 'password'}:
@@ -36,8 +52,8 @@ def load(path):
 
 
 def source(settings):
-    return {'repository': 'https://github.com/JoeKojima/Baymax.git',
-            'branch': f'refs/pull/{settings["pr"]}/head', 'auto_update': True}
+    branch = settings['branch'] if 'branch' in settings else f'refs/pull/{settings["pr"]}/head'
+    return {'repository': REPOSITORY, 'branch': branch, 'auto_update': True}
 
 
 def supplicant(wifi):

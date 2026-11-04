@@ -91,7 +91,7 @@ def main():
         commit = subprocess.check_output(['git', '-C', str(checkout), 'rev-parse', 'refs/heads/image-release'], text=True).strip()
         subprocess.run(['git', '-C', str(checkout), 'bundle', 'create', str(payload / 'ember.bundle'), 'refs/heads/image-release'], check=True)
         subprocess.run(['git', '-C', str(checkout), 'bundle', 'verify', str(payload / 'ember.bundle')], check=True)
-        private_json(payload / 'bundle-source.json', selected | {'pr': settings['pr'], 'commit': commit, 'bundle_branch': 'image-release'})
+        private_json(payload / 'bundle-source.json', selected | {'commit': commit, 'bundle_branch': 'image-release'})
         print('Building and checking image file...', flush=True)
         subprocess.run(['bash', str(HERE / 'build_linux.sh'), str(work), str(cache)], check=True)
         image = output / 'ember-opi4.img'
@@ -100,7 +100,7 @@ def main():
         private_json(output / 'device-access.private.json', credentials)
         private_json(output / 'ready-image.json', {
             'image': image.name, 'length': image.stat().st_size, 'sha256': digest(image),
-            'pr': settings['pr'], 'ref': selected['branch'], 'commit': commit,
+            'repository': selected['repository'], 'ref': selected['branch'], 'commit': commit,
             'hostname': credentials['hostname'], 'wifi_ssid': settings['wifi']['ssid'],
             'gemini_key_configured': bool(settings['gemini_api_key'])})
         print('Ready:', image, flush=True)
