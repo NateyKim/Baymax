@@ -1,5 +1,12 @@
 # MVP (unreleased)
 
+- Offline checks run on every pull request: `.github/workflows/offline-checks.yml`
+  (Natey's `docs/ci/desktop-offline.yml.example`, enabled and extended to
+  Linux) runs `check_release.py` on Ubuntu, Windows and macOS, adds the result
+  to the run summary and uploads the report. No secrets, devices or providers.
+  `requirements-pc.txt` skips Vosk on macOS, which has no wheel, so the Mac
+  install no longer fails. A green run is offline evidence only.
+
 - Gemini-in-the-loop evaluation without a robot: `evals/live_eval.py` builds
   the MVP's real Live config from the runtime `run_pc.py` launches
   (`realtime_gemini_10.py` here, with its `device.toml` prompt sections and
