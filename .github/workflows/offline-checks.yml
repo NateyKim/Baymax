@@ -13,7 +13,9 @@ on:
   pull_request:
     paths: ["Baymax-main/**", ".github/workflows/offline-checks.yml"]
   push:
-    branches: [main, MVP]
+    # release: the branch Orange Pi 4 Pro SD cards (ember-update) and the Orange Pi 5
+    # Max's autostart updater (devops/mvp/update.py) follow by default.
+    branches: [main, MVP, release]
     paths: ["Baymax-main/**", ".github/workflows/offline-checks.yml"]
   workflow_dispatch:
 
