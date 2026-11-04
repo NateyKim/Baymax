@@ -6,8 +6,8 @@
   deliberately diverges from Baymax's `startup-greeting` (LattePanda) branch; shared
   fixes are ported by hand. One dependency file, `requirements-orange-pi.txt`, for
   both boards (memory included; rknn-toolkit-lite2 installs on the 4 Pro but is never
-  imported there). Offline only: `check_release.py` passes on macOS (core 467 with 4
-  skipped, toolkit 171) and OPI4-Flash's tests pass (37, 9 Linux-only skipped).
+  imported there). Offline only: `check_release.py` passes on macOS (core 478 with 4
+  skipped, toolkit 173) and OPI4-Flash's tests pass (37, 9 Linux-only skipped).
   Nothing has run on either board in this combination yet.
   - Pose stays in its own process (opi4-demo's fix for minute-late replies and mic
     overflows on the 4 Pro) and the Orange Pi 5's backend now runs inside that child
