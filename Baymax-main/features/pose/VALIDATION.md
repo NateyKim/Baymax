@@ -354,8 +354,8 @@ the Mac copies).
   `create_pose_backend` there).
 - The camera loop with the 1-frame V4L2 buffer on the Orange Pi's camera (Linux ARM64
   only, `pc_hardware.latest_frames_only`): camera loop FPS and frame age were not
-  measured with a real camera on any platform (the FPS should stay near 15: the Monitor
-  shows it with Setup's fall-detection checkbox on, otherwise read the FPS overlay in
+  measured with a real camera on any platform (the FPS should stay near 10, the camera
+  loop's `FALL_DETECTION_FPS` since the merge: the Monitor shows it with Setup's fall-detection checkbox on, otherwise read the FPS overlay in
   the live view; the ~0.2 s saved is an estimate from OpenCV's four-frame queue).
 - Fall accuracy at home: real falls; older adults with Ember's camera position,
   lighting and occlusions; more than one person (num_poses=1, as in the runtime; see
