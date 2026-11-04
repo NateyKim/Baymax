@@ -13,11 +13,15 @@ python evals/live_eval.py --root ../../Baymax-look-closely/Baymax-main   # test 
 ```
 
 ## What is exercised
-- **Session config.** It's built from `realtime_gemini_8.py` itself, parsed without
-  importing devices: `MODEL`, the base prompt, `_BASE_CONFIG`, the audio-config hook
-  and `_build_config`. That includes the MVP persona and the toolkit declarations.
-  The environment defaults come from `run_pc.py` and `run_mvp.py`, and the toggles
-  from your `.env` apply, as they do on the robot.
+- **Session config.** It's built from the runtime `run_pc.py` launches
+  (`RUNTIME`: `realtime_gemini_10.py` on the Orange Pi line; `realtime_gemini_8.py`
+  for an older MVP checkout without it), parsed without importing devices: `MODEL`,
+  the base prompt and the `if` blocks that extend it (v10's `[WHEN TO SPEAK]` and
+  `[MEMORY CONTEXT]` from `device.toml`), `_BASE_CONFIG` (proactive audio when
+  `only_when_addressed`), the audio-config hook and `_build_config`. That includes
+  the MVP persona and the toolkit declarations. The environment defaults come from
+  `run_pc.py` and `run_mvp.py`, `device.toml` (`EMBER_DEVICE_CONFIG`, defaults when
+  absent) and the toggles from your `.env` apply, as they do on the robot.
 - **Turns.**
   - `say`: macOS `say` (or `espeak-ng`) text-to-speech, sent as 16-bit 48 kHz PCM in
     real time over quiet room noise (2 s lead-in, 1.5 s after) so Gemini's activity detection starts and ends the turn. With the MVP's LOW start sensitivity, Gemini ignored clean speech framed by digital silence.

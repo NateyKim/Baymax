@@ -91,6 +91,34 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config["realtime_input_config"]["activity_handling"], "NO_INTERRUPTION")
         self.assertIn("get_weather", live_eval.declared_tools(config))
 
+    def test_uses_the_runtime_the_launcher_runs(self):
+        import tempfile
+        from pathlib import Path
+        import run_pc
+        self.assertEqual(live_eval.CORE, run_pc.RUNTIME)  # realtime_gemini_10.py on the Orange Pi line.
+        with tempfile.TemporaryDirectory() as folder:   # An older MVP checkout for --root: v8, no RUNTIME.
+            (Path(folder) / "run_pc.py").write_text('runpy.run_path("realtime_gemini_8.py")\n')
+            self.assertEqual(live_eval.runtime(folder).name, "realtime_gemini_8.py")
+            self.assertEqual(live_eval.runtime(Path(folder) / "missing").name, "realtime_gemini_8.py")
+
+    def test_v10_config_has_its_device_switched_prompt_and_proactive_audio(self):
+        # v10 adds these in top-level `if` blocks from device.toml; they reach Gemini on the robot.
+        import device_config
+        real = device_config.get
+        for addressed, memory in ((True, True), (False, False)):
+            settings = {"conversation.only_when_addressed": addressed, "memory.retrieval_enabled": memory}
+            with patch.object(device_config, "get", lambda key: settings.get(key, real(key))):
+                model, config = live_eval.core_session(live_eval.runtime())
+            prompt = config["system_instruction"]
+            self.assertEqual("[WHEN TO SPEAK]" in prompt, addressed)
+            self.assertEqual("[MEMORY CONTEXT]" in prompt, memory)
+            self.assertEqual(config.get("proactivity"), {"proactive_audio": True} if addressed else None)
+            self.assertTrue(prompt.startswith(persona.PERSONA))
+            self.assertIn("session_resumption", config)
+        # The v8 runtime still builds for --root on an older MVP checkout.
+        model, config = live_eval.core_session(live_eval.ROOT / "realtime_gemini_8.py")
+        self.assertIn(persona.PERSONA, config["system_instruction"])
+
     def test_launcher_defaults_come_from_run_mvp_and_run_pc(self):
         defaults = live_eval.launcher_defaults()
         self.assertEqual(defaults["BAYMAX_WAIT_CUE_ENABLED"], "0")

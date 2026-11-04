@@ -1,7 +1,9 @@
 # MVP (unreleased)
 
 - Gemini-in-the-loop evaluation without a robot: `evals/live_eval.py` builds
-  the MVP's real Live config from `realtime_gemini_8.py` and the launchers,
+  the MVP's real Live config from the runtime `run_pc.py` launches
+  (`realtime_gemini_10.py` here, with its `device.toml` prompt sections and
+  proactive audio; v8 for older checkouts) and the launchers,
   plays scripted text-to-speech turns, picture cards and text notes into fresh
   sessions, stubs tool results and checks transcripts, tool calls, replies and
   first-audio latency over repeated runs. Feature scenarios (brain games, look

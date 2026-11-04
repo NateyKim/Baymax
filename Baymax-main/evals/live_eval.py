@@ -1,7 +1,8 @@
 """Gemini-in-the-loop checks: Ember's real MVP session, synthetic speech and images, no robot.
 
-Builds the exact Gemini Live config the MVP connects with (realtime_gemini_8.py
-_build_config plus the run_mvp.py / run_pc.py environment defaults), then plays
+Builds the exact Gemini Live config the MVP connects with (the `_build_config`
+of the runtime run_pc.py launches, realtime_gemini_10.py on the Orange Pi line,
+plus the run_mvp.py / run_pc.py environment defaults and device.toml), then plays
 scripted turns into a fresh session: text-to-speech audio at the robot's 48 kHz,
 generated picture cards as camera frames, or text notes. It records what Gemini
 heard, said and which tools it called, and checks each turn against the
@@ -36,12 +37,12 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-CORE = ROOT / "realtime_gemini_8.py"
 LAUNCHERS = (ROOT / "run_pc.py", ROOT / "run_mvp.py")
+FALLBACK_CORE = "realtime_gemini_8.py"   # Older MVP checkouts: run_pc.py runs v8 and names no RUNTIME.
 SCENARIOS = Path(__file__).resolve().parent / "scenarios.json"
 REPORT_DIR = ROOT / ".local-review"
-RATE = 48000                     # realtime_gemini_8.SEND_SAMPLE_RATE
-CHUNK = 1024                     # realtime_gemini_8.CHUNK_SIZE
+RATE = 48000                     # SEND_SAMPLE_RATE (v8 and v10)
+CHUNK = 1024                     # CHUNK_SIZE (v8 and v10)
 TRAILING_SILENCE_S = 1.5         # Lets Gemini's activity detection end the turn.
 # A real mic always carries room tone. Gemini's LOW start sensitivity (the MVP's)
 # ignored clean TTS framed by digital silence, but hears it over quiet noise.
@@ -55,6 +56,30 @@ DEFAULT_TOOL_RESULT = {"result": "ok"}
 
 
 # ── The MVP's real session config ────────────────────────────────────────────
+# What the session config is built from. v10 extends the prompt with device.toml
+# switches ([WHEN TO SPEAK], [MEMORY CONTEXT]) in top-level `if` blocks, turns on
+# proactive audio with ONLY_WHEN_ADDRESSED, and names its toolkit public_toolkit.
+CONFIG_NAMES = {"MODEL", "_BASE_SYSTEM_INSTRUCTION", "_BASE_CONFIG", "ONLY_WHEN_ADDRESSED",
+                "MEMORY_RETRIEVAL_ENABLED"}
+CONFIG_IMPORTS = {"audio_config", "persona", "device_config", "public_toolkit"}
+
+
+def runtime(root=ROOT):
+    """The runtime run_pc.py launches (`RUNTIME = ROOT / "realtime_gemini_10.py"`), else v8."""
+    try:
+        tree = ast.parse((Path(root) / "run_pc.py").read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return Path(root) / FALLBACK_CORE
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "RUNTIME" for t in node.targets)
+                and isinstance(node.value, ast.BinOp) and isinstance(node.value.right, ast.Constant)):
+            return Path(root) / node.value.right.value
+    return Path(root) / FALLBACK_CORE
+
+
+CORE = runtime()
+
+
 def launcher_defaults(paths=LAUNCHERS):
     """os.environ.setdefault(...) / os.environ[...] = ... constants the MVP launchers apply."""
     defaults = {}
@@ -72,17 +97,34 @@ def launcher_defaults(paths=LAUNCHERS):
     return defaults
 
 
+def _assigned(node):
+    """Names a top-level assignment (=, +=, annotated) binds."""
+    if isinstance(node, ast.Assign):
+        targets = node.targets
+    elif isinstance(node, (ast.AugAssign, ast.AnnAssign)):
+        targets = [node.target]
+    else:
+        return set()
+    return {t.id for t in targets if isinstance(t, ast.Name)}
+
+
+def _imported(node):
+    if not isinstance(node, (ast.Import, ast.ImportFrom)):
+        return set()
+    return {(a.asname or a.name).split(".")[0] for a in node.names}
+
+
 def core_session(core=CORE):
     """(model, config) from the runtime's own source, without importing its devices."""
     from google.genai import types
     tree = ast.parse(core.read_text(encoding="utf-8"))
-    names = {"MODEL", "_BASE_SYSTEM_INSTRUCTION", "_BASE_CONFIG"}
     body = []
     for node in tree.body:
-        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id in names for t in node.targets):
+        if _assigned(node) & CONFIG_NAMES or _imported(node) & CONFIG_IMPORTS:
             body.append(node)
-        elif isinstance(node, ast.ImportFrom) and any(a.asname == "audio_config" for a in node.names):
-            body.append(node)
+        elif (isinstance(node, ast.If) and not node.orelse
+              and all(_assigned(n) and _assigned(n) <= CONFIG_NAMES for n in node.body)):
+            body.append(node)   # v10: `if ONLY_WHEN_ADDRESSED: _BASE_SYSTEM_INSTRUCTION += ...`
         elif isinstance(node, ast.FunctionDef) and node.name == "_build_config":
             body.append(node)
     namespace = {"types": types, "os": os, "_memory_embedder": None}
@@ -95,7 +137,7 @@ def mvp_session(environ=os.environ, root=ROOT):
     for name, value in launcher_defaults([root / path.name for path in LAUNCHERS]).items():
         if name != "BAYMAX_HARDWARE_PROFILE":  # Device selection only; nothing is opened here.
             environ.setdefault(name, value)
-    return core_session(root / CORE.name)
+    return core_session(runtime(root))
 
 
 def declared_tools(config):
