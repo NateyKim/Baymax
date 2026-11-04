@@ -1,5 +1,17 @@
 # MVP (unreleased)
 
+- Radio and recordings: a `listen` tool plays live internet radio stations
+  (Radio Browser; MP3, Ogg and FLAC streams decoded incrementally by miniaudio,
+  with AAC and HLS skipped) and openly licensed Internet Archive recordings
+  (public domain, CC0, CC BY, CC BY-SA only). Both go through the audiobook
+  player, which now plays one program at a time (book, station or recording):
+  mixed into Ember's speaker, held while Ember speaks, mic withheld with the
+  "Hey Ember"/"stop" wake words. Streams reconnect on drops, and resume
+  reconnects to live radio. Stream URLs must resolve to public addresses.
+  Playback pauses for a check-in after 30 min (`BAYMAX_LISTEN_CHECK_MIN`), and
+  `BAYMAX_LISTEN_ENABLED=0` disables it. Audiobook download failures now tell
+  Ember the book stopped instead of "finished". Live robot check pending.
+
 - Brain games, played only when someone asks: word association, twenty
   questions either way, categories, remembering a list, story recall, riddles
   and word puzzles. A local `brain_game` tool supplies fresh rounds from word
