@@ -1,5 +1,13 @@
 # MVP (unreleased)
 
+- Add local speech detection and per-turn latency to the chat debugger. User
+  bubbles show speech/transcript timing and live reply waits; Ember bubbles show
+  reply arrival, scheduled speaker playback and response delays. Keep toolkit
+  start/end in one updating centered bubble and collapse the timing history.
+  Track output underruns, preserve interruption/reconnect cleanup, and support
+  a device override for speech-end sensitivity. Diagnostics use existing audio
+  streams, keep bounded local metadata, and omit ambiguous speech matches.
+
 - **Ember for Orange Pi: one repository for the Orange Pi 4 Pro and the Orange Pi 5
   Max.** Made from JoeKojima/Baymax PR #29 (`opi4-demo`), PR #22 (`codex/opi4-flash`),
   the Orange Pi 5 Max branches `orangepi5-npu` + `memory-incremental-saves`,
