@@ -8,7 +8,7 @@ from pathlib import Path
 # The repository every image follows. Its name is the owner's choice: keep this,
 # payload/ember-device-config.py (DEFAULTS) and payload/ember-update (DEFAULT_REPOSITORY)
 # in step if it changes.
-REPOSITORY = 'https://github.com/JoeKojima/Ember-OrangePi.git'
+REPOSITORY = 'https://github.com/Pallas-Robotics/Baymax.git'
 # The board's clock unless the private settings name another time zone. Daily
 # check-ins, reminders and the greeting's time of day follow it.
 DEFAULT_TIMEZONE = 'America/Los_Angeles'

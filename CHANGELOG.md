@@ -34,7 +34,7 @@
     (`validate.py`, `benchmark.py`) now use 10 fps and history 6; VALIDATION.md's
     numbers are marked as measured before the merge (in-process, full model, 15 fps).
   - OPI4-Flash follows a branch of this repository (default `release`;
-    `https://github.com/JoeKojima/Ember-OrangePi.git` is a working name) instead of
+    `https://github.com/Pallas-Robotics/Baymax.git`, the Orange Pi fork) instead of
     Baymax PR #20, installs packages only from `requirements-orange-pi.txt` (its
     separate v10 list is gone; the import check adds chromadb, onnxruntime,
     tokenizers), and keeps memory, reminders and logs in `~/ember-deployment/data`

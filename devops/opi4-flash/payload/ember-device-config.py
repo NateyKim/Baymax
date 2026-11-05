@@ -8,7 +8,7 @@ import tempfile
 from urllib.parse import urlsplit
 
 # Same repository as image_settings.REPOSITORY; release is also devops/mvp/update.py's default.
-DEFAULTS = {'repository': 'https://github.com/JoeKojima/Ember-OrangePi.git',
+DEFAULTS = {'repository': 'https://github.com/Pallas-Robotics/Baymax.git',
             'branch': 'release', 'auto_update': True}
 
 

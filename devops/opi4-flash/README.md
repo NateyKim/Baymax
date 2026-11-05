@@ -25,7 +25,7 @@ Run the private configurator or copy `settings.example.json` to
 ```
 
 - **Branch:** a branch of this repository (`REPOSITORY` in `image_settings.py`,
-  `https://github.com/JoeKojima/Ember-OrangePi.git`), `release` by default, the
+  `https://github.com/Pallas-Robotics/Baymax.git`), `release` by default, the
   same default as `devops/mvp/update.py`. Startup fetches it, installs and checks the
   release, then promotes it. The same branch is bundled as the first-install fallback
   if Git is temporarily unavailable. Choosing an incompatible branch can fail
