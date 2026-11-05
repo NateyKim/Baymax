@@ -165,6 +165,38 @@ An Orange Pi installed before this change needs the new packages once:
 lookups, and then nothing downloads the model: run `--download` (above) once, or
 session summaries can't be saved.
 
+## Radio, check-ins and other conversation features
+
+The same on both boards (and on every platform); `requirements-orange-pi.txt` already
+has what they need. None of them has been tried on either board yet. Details, switches
+and data flows: the [toolkit guide](features/toolkits/README.md) and
+[conversational ability](features/conversational_ability/README.md).
+
+- **Voice volume:** "Ember, speak louder", "softer" or "set your volume to 8" (1-10;
+  7 leaves the audio unchanged). Only Ember's voice changes; audiobooks, radio and
+  recordings keep `BAYMAX_BOOK_VOLUME`. The level is kept in `voice_volume.json` in
+  `BAYMAX_DATA_DIR` (next to the code by default; on the Orange Pi 4 Pro SD image
+  `~/ember-deployment/data`, which updates keep).
+- **Radio and recordings** (`listen`): live stations from Radio Browser and openly
+  licensed Internet Archive recordings, decoded by miniaudio and played like an
+  audiobook. While one plays only the Vosk wake words ("Hey Ember", "stop") reach
+  Ember, so a fall check-in or a due reminder pauses it first.
+  `BAYMAX_LISTEN_ENABLED=0` turns it off.
+- **Daily check-ins:** a morning, afternoon and evening question, at most once each
+  per day, not in the first 20 minutes after a start, and only when it is quiet and
+  the person spoke to Ember in the last 3 hours. The windows use the board's local
+  clock, so confirm the timezone. "Done today" is kept in `toolkit_checkins.json` in
+  `BAYMAX_DATA_DIR`. `BAYMAX_CHECKINS=0` turns it off.
+- **Look closely:** asked to read or identify something, Ember sends Gemini one
+  sharper still: the camera thread's full 640x480 frame instead of the usual small
+  video frame. `BAYMAX_LOOK_CLOSELY=0` turns it off.
+- **Brain games:** word games played only when someone asks, from local word lists;
+  on with the Discovery tools.
+- **Reconnecting:** Ember reconnects after any disconnect from Gemini, and after a
+  network that goes silent (a microphone send stuck for 5 s), and does not play the
+  rest of a reply the disconnect cut off. A fall check-in or another message of
+  Ember's own that the disconnect cut off is sent again on the new connection.
+
 ## Optional: pose on the NPU
 
 Orange Pi 5 / 5 Max (RK3588) only; the Orange Pi 4 Pro has no NPU that Ember uses.

@@ -14,13 +14,16 @@
 
 Both start `Baymax-main/run_mvp.py` -> `run_pc.py` -> `realtime_gemini_10.py` (the
 4 Pro image's service, the autostart service, and **3 - Start Ember** on Linux ARM64) and
-include the same conversation/personality, Gemini session, audio cleanup, 400 ms
-turn-end default, reply-time echo protection, local eye expressions, 60-second idle
-sleep eyes, engage/disengage, reminders/repeats/check-ins, audiobooks/wake
-recognition, app integration, public tools, conversation memory (saved while Ember
-runs) and built-in pose/fall detection. Existing feature flags, opt-ins and saved
-settings still apply; app integration needs its device key and alerts need their
-recipients. Memory Palace/people-recognition work outside this MVP is not added.
+include the same conversation/personality, Gemini session (reconnecting after any
+disconnect), audio cleanup, 400 ms turn-end default, reply-time echo protection, a
+voice volume the person can change by asking, local eye expressions, 60-second idle
+sleep eyes, engage/disengage, reminders/repeats/check-ins, gentle daily check-ins,
+audiobooks/wake recognition, live radio and Internet Archive recordings, brain games,
+"look closely" (one sharper camera still on request), app integration, public tools,
+conversation memory (saved while Ember runs) and built-in pose/fall detection.
+Existing feature flags, opt-ins and saved settings still apply; app integration needs
+its device key and alerts need their recipients. Memory Palace/people-recognition work
+outside this MVP is not added.
 
 The same code runs on both boards; the board decides at runtime:
 
@@ -49,11 +52,11 @@ Orange Pi 4 Pro: build an SD image with [OPI4-Flash](../devops/opi4-flash/README
 or follow `Baymax-main/MVP.md`. Orange Pi 5 Max: follow
 `Baymax-main/ORANGE_PI_SETUP.md` (clickables; the NPU steps are optional). Setup
 detects Linux ARM64 and installs `requirements-orange-pi.txt` under Python 3.12. It
-includes pywebrtc-audio (audio cleanup), pyfirmata2 (eyes), miniaudio (audiobook
-decoding), Vosk (offline wake), ChromaDB/ONNX Runtime/tokenizers (memory) and
-rknn-toolkit-lite2. ARM miniaudio and praat-parselmouth may compile from source
-(the SD image downloads prebuilt wheels instead); install compiler tools. ARM
-MediaPipe/NumPy pins differ from x86 pins.
+includes pywebrtc-audio (audio cleanup), pyfirmata2 (eyes), miniaudio (audiobook,
+radio and recording decoding), Vosk (offline wake), ChromaDB/ONNX Runtime/tokenizers
+(memory) and rknn-toolkit-lite2. ARM miniaudio and praat-parselmouth may compile
+from source (the SD image downloads prebuilt wheels instead); install compiler tools.
+ARM MediaPipe/NumPy pins differ from x86 pins.
 
 The prerequisite helper supports Debian 13 only. On DietPi/another Debian
 version, provision equivalent system libraries first: curl, ca-certificates, git,
@@ -82,12 +85,17 @@ raw local recordings continue. This is voice sleep, not a privacy-off switch.
 
 Run `python check_release.py` in `Baymax-main`; preserve separate core/toolkit
 results. The profile test checks the shared feature dependencies and the installer
-architecture selection. Offline checks do not establish physical equivalence
-between the boards.
+architecture selection. Pull requests also run the checks with
+`requirements-orange-pi.txt` on GitHub's Linux ARM64 runner
+(`.github/workflows/offline-checks.yml`): same pins and CPU architecture, not an
+Orange Pi. Offline checks do not establish physical equivalence between the boards.
 
 On each board, verify installation/native imports, selected devices, audible
 multi-turn conversation/echo, engage/disengage (including reminder/fall wake),
-eyes, audiobook playback, reminders/app integration, memory, fall behavior,
+eyes, audiobook, radio and recording playback (and that a fall check-in or due
+reminder pauses it), the voice volume on the board's speaker, "look closely" with the
+board's camera, daily check-ins on the board's clock, reconnecting after a Wi-Fi drop,
+reminders/app integration, memory, fall behavior,
 sustained camera+audio performance (CPU summed over Ember and its pose/face
 processes), clean stop/restart and cold boot. On the Orange Pi 5 Max also the NPU
 path inside Ember; on the Orange Pi 4 Pro the hotspot (if installed) and the SD
