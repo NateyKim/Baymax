@@ -8,11 +8,11 @@
   "Weather") and one commit of `reconnect-any-disconnect` (6afe802: the entries
   from "Reconnect after any disconnect" to its "Tested offline only"; not its
   LattePanda parent b5d41de). It deliberately diverges from Baymax's
-  `startup-greeting` (LattePanda) branch; shared fixes are ported by hand. One dependency file,
-  `requirements-orange-pi.txt`, for both boards (memory included; rknn-toolkit-lite2
-  installs on the 4 Pro but is never imported there). Offline only:
-  `check_release.py` passes on macOS (core 511 with 4 skipped, toolkit 234) and
-  OPI4-Flash's tests pass (37, 9 Linux-only skipped). Nothing has run on either
+  `startup-greeting` (LattePanda) branch; shared fixes are ported by hand. One
+  dependency file, `requirements-orange-pi.txt`, for both boards (memory included;
+  rknn-toolkit-lite2 installs on the 4 Pro but is never imported there). Offline
+  only: `check_release.py` passes on macOS (core 536 with 4 skipped, toolkit 238)
+  and OPI4-Flash's tests pass (37, 9 Linux-only skipped). Nothing has run on either
   board in this combination yet.
   - Pose stays in its own process (opi4-demo's fix for minute-late replies and mic
     overflows on the 4 Pro) and the Orange Pi 5's backend now runs inside that child
@@ -41,15 +41,27 @@
     and downloaded models in `~/ember-deployment/shared` across updates on cards
     built by this builder (a card from an older image keeps its own updater, which
     does neither: reflash it, or move the data by hand as the OPI4-Flash README
-    says). The Debian
-    prerequisites install git, which the updater needs on a fresh 5 Max.
+    says). The Debian prerequisites install git, which the updater needs on a fresh
+    5 Max.
+  - With the features and the reconnect fix: both fall alerts pause playback and
+    retry a failed send, and a retry keeps the note that playback was paused (it was
+    dropped: the first try had already paused it). The voice volume and the daily
+    check-ins keep their state (`voice_volume.json`, `toolkit_checkins.json`) in
+    `BAYMAX_DATA_DIR`, which SD-card updates keep. The offline checks also run on
+    pushes to `release`, the branch both boards' updaters follow. With the Orange Pi
+    pins (NumPy 1.26.4, OpenCV 4.10, MediaPipe 0.10.18, ChromaDB 1.5.8) first on the
+    path, `check_release.py` also passes on macOS (core 536 with 3 skipped, toolkit
+    238); google-genai, miniaudio and other packages that environment lacked came
+    from the desktop one, so this only approximates CI's Linux ARM64 job.
   - Pending on the boards: CPU summed over Ember and its pose/face processes (NPU vs
     `BAYMAX_POSE_BACKEND=cpu`, with and without the fall toolkit), pose round-trip
     time, mic overflows and reply latency over 10 minutes, killing the pose process,
     the live view, frame age with the 1-frame buffer, `validate.py --fps 10` fall
     agreement on the 5 Max; `cpu_capacity` and pinning, memory download and survival
     across `ember-update`, image build size/time and an emulated `check_release` on the
-    4 Pro.
+    4 Pro; on both, radio and recordings on the board's speaker and their pause for a
+    fall check-in or due reminder, the voice volume, "look closely" with the board's
+    camera, daily check-ins, and reconnecting after a Wi-Fi drop.
 
 - Reconnect after any disconnect. The send and receive loops only reconnected when
   the error text contained 1000, 1006, 1011, CANCELLED or closed. Gemini closing
