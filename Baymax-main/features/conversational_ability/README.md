@@ -217,16 +217,18 @@ audio is cleared, so it can't play after the reconnect with the mic muted. Ember
 messages (a fall check-in, a family message, a reminder) that reached Gemini are sent
 again on the next connection if their reply was still playing, or hadn't come yet and
 the message is under 30 s old (`AddressGate.abandon`), unless the person has spoken
-since; one already heard isn't repeated. A message that never reached Gemini is left to
-its sender's own retry, so nothing is sent twice; both fall alerts now retry
-themselves. An audiobook isn't cleared: it goes quiet during the reconnect and resumes
-where it stopped.
+since; one already heard isn't repeated. If that resend fails too (the new connection
+drops before it), the message stays first in line for the connection after
+(`_send_cut_off_prompts`). A message that never reached Gemini is left to its sender's
+own retry, so nothing is sent twice; both fall alerts now retry themselves. An
+audiobook isn't cleared: it goes quiet during the reconnect and resumes where it
+stopped.
 
 Tests: `tests/test_session.py` (fake handles; full config validated by the SDK) and
 `ReconnectTests` in `tests/test_v10_runtime.py` (the real send and receive loops on
 the real SDK session over a local websocket, closed with each close code or left
-unread; a cut-off fall check-in through the real `run()`), and the resend rules in
-`tests/test_address_gate.py`.
+unread; a cut-off fall check-in through the real `run()`, also when its resend fails),
+and the resend rules in `tests/test_address_gate.py`.
 
 ### Local waiting acknowledgement (MVP)
 

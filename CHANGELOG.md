@@ -53,6 +53,11 @@
     path, `check_release.py` also passes on macOS (core 536 with 3 skipped, toolkit
     238); google-genai, miniaudio and other packages that environment lacked came
     from the desktop one, so this only approximates CI's Linux ARM64 job.
+  - Fixed after reviewing the combination: a message of Ember's own that a disconnect
+    cut off (a fall check-in, a family message) was lost for good if its resend on
+    the new connection failed too, although the code said the next connection would
+    send it (6afe802 had this; here a fall check-in's paused radio also stayed paused,
+    unexplained). It now stays first in line for the connection after.
   - Pending on the boards: CPU summed over Ember and its pose/face processes (NPU vs
     `BAYMAX_POSE_BACKEND=cpu`, with and without the fall toolkit), pose round-trip
     time, mic overflows and reply latency over 10 minutes, killing the pose process,

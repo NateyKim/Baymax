@@ -15,7 +15,7 @@ from google import genai
 from google.genai import errors, live
 from websockets.asyncio.client import connect as ws_connect
 from websockets.asyncio.server import serve as ws_serve
-from websockets.exceptions import ConnectionClosed
+from websockets.exceptions import ConnectionClosed, ConnectionClosedError
 
 from features.conversational_ability.addressing import AddressGate
 from features.conversational_ability.session import connection_lost
@@ -355,37 +355,37 @@ class ReconnectTests(unittest.TestCase):
         self.abandon_namespace(gate, audio=b"", speaking=False)["_abandon_reply"]()
         gate.abandon.assert_called_once_with(False)
 
-    def test_a_fall_check_in_cut_off_by_a_disconnect_is_asked_again_through_run(self):
-        """The real run(), with its real cleanup, the real gate and the real watched session."""
+    FALL_ALERT = {"turns": {"role": "user", "parts": [{"text": "[FALL ALERT] check on them"}]}, "turn_complete": True}
+
+    def run_connections(self, count, receive, failing=()):
+        """The real run(), with its real cleanup, the real gate and the real watched
+        session, for `count` connections. `receive(index, session, namespace)` is each
+        connection's receive loop; every send on a connection in `failing` fails."""
         class Stop(BaseException):
             pass
-        alert = {"turns": {"role": "user", "parts": [{"text": "[FALL ALERT] check on them"}]}, "turn_complete": True}
-        sessions, sent = [], []
+        sessions = []
 
         class Session:
-            def __init__(self):
-                self.sent = []
+            def __init__(self, index):
+                self.index, self.attempted, self.sent = index, [], []
                 self._ws = SimpleNamespace(transport=SimpleNamespace(abort=Mock()))
             async def send_client_content(self, **kwargs):
+                self.attempted.append(kwargs)
+                if self.index in failing:
+                    raise ConnectionClosedError(None, None)
                 self.sent.append(kwargs)
 
         class Connect:
             async def __aenter__(self):
-                if len(sessions) == 2:
+                if len(sessions) == count:
                     raise Stop()
-                sessions.append(Session())
+                sessions.append(Session(len(sessions)))
                 return sessions[-1]
             async def __aexit__(self, *exc):
                 return False
 
         async def forever(*args, **kwargs):
             await asyncio.Event().wait()
-
-        async def receive(session):
-            if len(sessions) == 1:  # Gemini streams the check-in; it is still queued when the line drops.
-                await session.send_client_content(**alert)
-                namespace["_playback_buffer"] = b"are you okay?"
-            raise errors.APIError(1008, {"message": "bye"})
 
         namespace = {
             "asyncio": asyncio, "time": SimpleNamespace(sleep=Mock(), monotonic=time.monotonic),
@@ -401,7 +401,8 @@ class ReconnectTests(unittest.TestCase):
             "POSE_TRACKING_ENABLED": True, "RANDOM_INITIATION_ENABLED": False,
             "start_output_stream": Mock(), "sd": Mock(), "get_default_device_id": lambda: (0, 0),
             "listen_audio": forever, "send_audio_realtime": forever, "send_video_realtime": forever,
-            "receive_audio": receive, "fall_alert_monitor": forever, "monitor_queues": forever,
+            "receive_audio": lambda session: receive(len(sessions) - 1, session, namespace),
+            "fall_alert_monitor": forever, "monitor_queues": forever,
             "fall_worker": SimpleNamespace(alert_monitor=forever), "_shutdown_event": None,
         }
         with patch("test_public_core_integration.CORE", V10):
@@ -409,10 +410,40 @@ class ReconnectTests(unittest.TestCase):
                 load_function(name, namespace)
         with patch("builtins.print"), patch("asyncio.sleep", AsyncMock()), self.assertRaises(Stop):
             asyncio.run(namespace["run"]())
-        self.assertEqual(sessions[0].sent, [alert])
-        self.assertEqual(sessions[1].sent, [alert])  # asked again on the new connection
+        return sessions, namespace
+
+    async def cut_off_alert(self, index, session, namespace):
+        """Gemini streams the fall check-in's reply; it is still queued when the line drops."""
+        await session.send_client_content(**self.FALL_ALERT)
+        namespace["_playback_buffer"] = b"are you okay?"
+        raise errors.APIError(1008, {"message": "bye"})
+
+    def test_a_fall_check_in_cut_off_by_a_disconnect_is_asked_again_through_run(self):
+        async def receive(index, session, namespace):
+            if index == 0:
+                await self.cut_off_alert(index, session, namespace)
+            raise errors.APIError(1008, {"message": "bye"})
+        sessions, namespace = self.run_connections(2, receive)
+        self.assertEqual(sessions[0].sent, [self.FALL_ALERT])
+        self.assertEqual(sessions[1].sent, [self.FALL_ALERT])  # asked again on the new connection
         self.assertEqual(namespace["_playback_buffer"], b"")  # the old audio did not survive
         sessions[0]._ws.transport.abort.assert_called_once()
+
+    def test_a_cut_off_check_in_whose_resend_fails_is_asked_on_the_connection_after(self):
+        # The second connection drops before its first send: the check-in never reached
+        # Gemini there, so the gate can't hand it back and its sender won't retry it.
+        async def receive(index, session, namespace):
+            if index == 0:
+                await self.cut_off_alert(index, session, namespace)
+            if index == 1:
+                await asyncio.Event().wait()  # the failed resend ends this connection
+            raise errors.APIError(1008, {"message": "bye"})
+        sessions, namespace = self.run_connections(3, receive, failing={1})
+        self.assertEqual(sessions[0].sent, [self.FALL_ALERT])
+        self.assertEqual(sessions[1].attempted, [self.FALL_ALERT])
+        self.assertEqual(sessions[1].sent, [])
+        self.assertEqual(sessions[2].sent, [self.FALL_ALERT])  # asked once it can be heard
+        self.assertEqual(sessions[2].attempted, [self.FALL_ALERT])  # and only once
 
     def test_a_fall_alert_that_cannot_reach_gemini_is_asked_again(self):
         event = threading.Event()
@@ -476,14 +507,33 @@ class ReconnectTests(unittest.TestCase):
         self.assertNotIn("paused", delivered[1])
 
     def test_a_failed_resend_stays_queued_for_the_next_connection(self):
-        namespace = {"_cut_off_prompts": [((), {"turn_complete": True}), ((), {"turn_complete": True, "n": 2})]}
+        first, second = ((), {"turn_complete": True, "n": 1}), ((), {"turn_complete": True, "n": 2})
+        # The send fails, or the session ends (cancelling it) while it waits.
+        for error in (ConnectionResetError, asyncio.CancelledError):
+            with self.subTest(error=error.__name__):
+                namespace = {"_cut_off_prompts": [first, second]}
+                with patch("test_public_core_integration.CORE", V10):
+                    send = load_function("_send_cut_off_prompts", namespace)
+                async def fails(**kwargs):
+                    raise error()
+                with patch("builtins.print"), self.assertRaises(error):
+                    asyncio.run(send(SimpleNamespace(send_client_content=fails)))
+                self.assertEqual(namespace["_cut_off_prompts"], [first, second])  # in their order
+
+    def test_a_resent_message_leaves_the_queue(self):
+        first, second = ((), {"turn_complete": True, "n": 1}), ((), {"turn_complete": True, "n": 2})
+        namespace = {"_cut_off_prompts": [first, second]}
         with patch("test_public_core_integration.CORE", V10):
             send = load_function("_send_cut_off_prompts", namespace)
-        async def fails(**kwargs):
-            raise ConnectionResetError()
+        sent = []
+        async def second_fails(**kwargs):
+            if sent:
+                raise ConnectionResetError()
+            sent.append(kwargs)
         with patch("builtins.print"), self.assertRaises(ConnectionResetError):
-            asyncio.run(send(SimpleNamespace(send_client_content=fails)))
-        self.assertEqual(namespace["_cut_off_prompts"], [((), {"turn_complete": True, "n": 2})])
+            asyncio.run(send(SimpleNamespace(send_client_content=second_fails)))
+        self.assertEqual(sent, [first[1]])
+        self.assertEqual(namespace["_cut_off_prompts"], [second])  # the sent one isn't sent twice
 
     def test_a_stop_reaches_the_shutdown_summary_after_a_reconnect(self):
         # After a TaskGroup child fails, Python 3.11/3.12 end asyncio.run with

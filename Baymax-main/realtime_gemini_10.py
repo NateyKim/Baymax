@@ -792,12 +792,20 @@ def _abandon_reply():
     _cut_off_prompts.extend(_address_gate.abandon(audio_cut_off))
 
 async def _send_cut_off_prompts(session):
-    """Send what the last connection cut off. One at a time: the gate notes each as it
-    goes, so a failure here is simply sent again by the next connection."""
+    """Send what the last connection cut off, one at a time. A message whose send fails
+    (this connection drops too, or the session ends meanwhile) goes back to the front
+    for the next connection: it never reached the gate, so `abandon` can't return it,
+    and its sender, whose own send succeeded, won't retry it. A sent one is out of the
+    list, and the gate notes it with no pause before the send returns, so nothing is
+    sent twice."""
     while _cut_off_prompts:
         args, kwargs = _cut_off_prompts.pop(0)
         print("[SESSION] Sending Ember's cut-off message again.", flush=True)
-        await session.send_client_content(*args, **kwargs)
+        try:
+            await session.send_client_content(*args, **kwargs)
+        except BaseException:
+            _cut_off_prompts.insert(0, (args, kwargs))
+            raise
 
 def _abort_connection(session):
     """Leaving connect() closes the socket politely, which on a network that has gone
