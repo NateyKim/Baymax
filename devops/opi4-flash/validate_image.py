@@ -1,11 +1,12 @@
 """Offline assertions for this board image and its secret boundaries."""
 import importlib.util
 import json
+import os
 from pathlib import Path
 import stat
 import sys
 from unittest.mock import patch
-from image_settings import load, source, supplicant
+from image_settings import load, source, supplicant, timezone
 
 root = Path(sys.argv[1])
 settings = load(sys.argv[2])
@@ -15,6 +16,9 @@ assert list((root / 'usr/lib/modules').rglob('aic8800_fdrv.ko.xz')), 'Wi-Fi driv
 assert (root / 'usr/lib/firmware/aic8800/SDIO/aic8800D80').is_dir()
 assert 'ember:x:1001:1001:' in (root / 'etc/passwd').read_text()
 assert 'AUTO_SETUP_NET_WIFI_ENABLED=1' in (root / 'boot/dietpi.txt').read_text()
+assert f'AUTO_SETUP_TIMEZONE={timezone(settings)}' in (root / 'boot/dietpi.txt').read_text().splitlines()
+assert os.readlink(root / 'etc/localtime') == '/usr/share/zoneinfo/' + timezone(settings)
+assert (root / 'etc/timezone').read_text() == timezone(settings) + '\n'
 assert (root / 'etc/wpa_supplicant/wpa_supplicant.conf').read_text() == supplicant(settings['wifi'])
 assert json.loads((root / 'home/ember/.config/ember/device.json').read_text()) == source(settings)
 assert (root / 'home/ember/.config/ember/initial.env').read_text() == ('GOOGLE_API_KEY=' + json.dumps(settings['gemini_api_key'])

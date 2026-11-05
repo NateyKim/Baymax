@@ -1,4 +1,4 @@
-"""The three private choices baked into an Ember SD image."""
+"""The three private choices baked into an Ember SD image, plus optional ones."""
 import hashlib
 import json
 import re
@@ -9,6 +9,10 @@ from pathlib import Path
 # payload/ember-device-config.py (DEFAULTS) and payload/ember-update (DEFAULT_REPOSITORY)
 # in step if it changes.
 REPOSITORY = 'https://github.com/JoeKojima/Ember-OrangePi.git'
+# The board's clock unless the private settings name another time zone. Daily
+# check-ins, reminders and the greeting's time of day follow it.
+DEFAULT_TIMEZONE = 'America/Los_Angeles'
+OPTIONAL = {'access_password', 'timezone'}
 
 
 def valid_branch(branch):
@@ -18,14 +22,28 @@ def valid_branch(branch):
             and not any(part.startswith('.') for part in branch.split('/')))
 
 
+def valid_timezone(name):
+    """An IANA time zone name such as America/New_York or UTC. The build also checks
+    that the image's own /usr/share/zoneinfo has it."""
+    return (isinstance(name, str) and len(name) <= 64
+            and re.fullmatch(r'[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*', name) is not None)
+
+
+def timezone(settings):
+    return settings.get('timezone', DEFAULT_TIMEZONE)
+
+
 def validate(value):
     follow = set(value) & {'branch', 'pr'} if isinstance(value, dict) else set()
-    if len(follow) != 1 or set(value) - {'access_password'} - follow != {'wifi', 'gemini_api_key'}:
-        raise ValueError('Choose branch (or the older pr), wifi and gemini_api_key (access_password is optional).')
+    if len(follow) != 1 or set(value) - OPTIONAL - follow != {'wifi', 'gemini_api_key'}:
+        raise ValueError('Choose branch (or the older pr), wifi and gemini_api_key '
+                         '(access_password and timezone are optional).')
     access = value.get('access_password')
     if access is not None and (not isinstance(access, str) or not 8 <= len(access) <= 64
                                or any(c.isspace() or ord(c) < 32 for c in access)):
         raise ValueError('access_password must be 8-64 characters without spaces.')
+    if 'timezone' in value and not valid_timezone(value['timezone']):
+        raise ValueError('timezone must be a time zone name such as America/New_York or UTC.')
     if 'branch' in value and not valid_branch(value['branch']):
         raise ValueError('branch must be a valid Git branch name, such as release.')
     # Older private settings name a pull request instead of a branch.

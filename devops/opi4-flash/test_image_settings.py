@@ -5,7 +5,8 @@ from pathlib import Path
 import tempfile
 import unittest
 from configure_image import save_private
-from image_settings import REPOSITORY, validate, valid_branch, load, source, supplicant, dietpi_wifi
+from image_settings import (DEFAULT_TIMEZONE, REPOSITORY, validate, valid_branch, load, source, supplicant,
+                            dietpi_wifi, timezone, valid_timezone)
 
 HERE = Path(__file__).parent
 spec = importlib.util.spec_from_file_location('ember_device_config', HERE / 'payload/ember-device-config.py')
@@ -53,6 +54,35 @@ class ImageSettingsTests(unittest.TestCase):
         for bad in ('short', 'has space1', 42):
             with self.assertRaises(ValueError):
                 validate(self.settings | {'access_password': bad})
+
+    def test_optional_time_zone_is_validated_and_defaults_to_pacific(self):
+        # Check-ins, reminders and the greeting follow the board's clock.
+        self.assertEqual(timezone(self.settings), DEFAULT_TIMEZONE)
+        self.assertEqual(DEFAULT_TIMEZONE, 'America/Los_Angeles')  # what older images were set to
+        for zone in ('America/New_York', 'UTC', 'Etc/GMT+5', 'America/Argentina/Buenos_Aires',
+                     'America/Port-au-Prince'):
+            self.assertEqual(timezone(validate(self.settings | {'timezone': zone})), zone)
+        for bad in ('', 'America/New York', '../../etc/passwd', '/usr/share/zoneinfo/UTC', 'America//X',
+                    'America/', 'UTC\nAUTO_SETUP_AUTOMATED=1', 'a' * 65, 7, None):
+            self.assertFalse(valid_timezone(bad), bad)
+            with self.assertRaises(ValueError):
+                validate(self.settings | {'timezone': bad})
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'private.json'
+            save_private(path, self.settings | {'timezone': 'America/Chicago'})
+            self.assertEqual(timezone(load(path)), 'America/Chicago')
+        example = validate(json.loads((HERE / 'settings.example.json').read_text()))
+        self.assertEqual(timezone(example), DEFAULT_TIMEZONE)
+
+    def test_the_image_gets_the_chosen_time_zone(self):
+        inject = (HERE / 'inject_image.py').read_text()
+        self.assertIn("'AUTO_SETUP_TIMEZONE': zone,", inject)
+        self.assertIn("symlink_to('/usr/share/zoneinfo/' + zone)", inject)
+        self.assertIn("write('/etc/timezone', zone + '\\n')", inject)
+        self.assertNotIn('America/Los_Angeles', inject)
+        validate_image = (HERE / 'validate_image.py').read_text()
+        self.assertIn('AUTO_SETUP_TIMEZONE={timezone(settings)}', validate_image)
+        self.assertIn("readlink(root / 'etc/localtime')", validate_image)
 
     def test_wpa_derivation_matches_known_vector(self):
         text = supplicant(self.settings['wifi'])

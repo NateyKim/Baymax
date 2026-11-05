@@ -59,6 +59,9 @@ second machine has not been recorded.
   AnyDesk and progress reporting.
 - Validate preconfigured/blank-key behavior and spoken v10 conversation, real
   audio/video quality, stop/restart and disabled-camera behavior on that fresh card.
+- Confirm with `timedatectl` that a card built with a `timezone` other than the
+  default (offline only: the build writes it to `dietpi.txt`, `/etc/timezone` and
+  `/etc/localtime`) keeps it after DietPi's first boot.
 - Validate ambiguous/missing physical USB devices and mixed-room conversation.
 - Connect and validate eye hardware separately. No eyes were connected for these
   checks; synthetic tests do not establish physical eye behavior.

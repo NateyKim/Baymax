@@ -7,7 +7,7 @@ import subprocess
 import sys
 import re
 import tarfile
-from image_settings import load, source, supplicant, dietpi_wifi
+from image_settings import load, source, supplicant, dietpi_wifi, timezone
 
 root = Path(sys.argv[1]).resolve()
 payload = Path(sys.argv[2]).resolve()
@@ -19,6 +19,9 @@ assert re.fullmatch(r'ember-[a-f0-9]{8}', hostname), 'Invalid generated hostname
 settings = load(payload / 'image-settings.private.json')
 bundle = json.loads((payload / 'bundle-source.json').read_text())
 assert (bundle['repository'], bundle['branch']) == (source(settings)['repository'], source(settings)['branch']), 'Bundle does not match selected PR'
+zone = timezone(settings)
+assert not (root / 'usr/share/zoneinfo').is_dir() or os.path.lexists(root / 'usr/share/zoneinfo' / zone), \
+    f'Time zone {zone} is not in the image (usr/share/zoneinfo)'
 
 
 def image_directory(path):
@@ -76,6 +79,10 @@ shadow.append(f'ember:{password_hash}:20754:0:99999:7:::')
 write('/etc/shadow', '\n'.join(shadow) + '\n', 0o640)
 write('/etc/sudoers.d/ember', 'ember ALL=(ALL:ALL) ALL\n', 0o440)
 write('/etc/hostname', hostname + '\n')
+# The board's clock (check-in windows, reminders); DietPi's first boot applies the same zone.
+write('/etc/timezone', zone + '\n')
+(root / 'etc/localtime').unlink(missing_ok=True)
+(root / 'etc/localtime').symlink_to('/usr/share/zoneinfo/' + zone)
 if (root / 'boot/dietpi.txt').is_file():
     dietpi = (root / 'boot/dietpi.txt').read_text()
     dietpi_options = {
@@ -85,7 +92,7 @@ if (root / 'boot/dietpi.txt').is_file():
         'AUTO_SETUP_NET_WIFI_ENABLED': '1',
         'AUTO_SETUP_NET_WIFI_COUNTRY_CODE': 'US',
         'AUTO_SETUP_NET_HOSTNAME': hostname,
-        'AUTO_SETUP_TIMEZONE': 'America/Los_Angeles',
+        'AUTO_SETUP_TIMEZONE': zone,
         'CONFIG_CHECK_DIETPI_UPDATES': '0',
         'CONFIG_CHECK_APT_UPDATES': '0',
     }

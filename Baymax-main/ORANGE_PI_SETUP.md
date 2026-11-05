@@ -186,8 +186,11 @@ and data flows: the [toolkit guide](features/toolkits/README.md) and
 - **Daily check-ins:** a morning, afternoon and evening question, at most once each
   per day, not in the first 20 minutes after a start, and only when it is quiet and
   the person spoke to Ember in the last 3 hours. The windows use the board's local
-  clock, so confirm the timezone. "Done today" is kept in `toolkit_checkins.json` in
-  `BAYMAX_DATA_DIR`. `BAYMAX_CHECKINS=0` turns it off.
+  clock, so check its time zone with `timedatectl` and set the home's with `sudo
+  timedatectl set-timezone America/New_York` (then restart Ember). An OPI4-Flash card
+  is set to `America/Los_Angeles` unless its image settings name another `timezone`
+  ([OPI4-Flash](../devops/opi4-flash/README.md)). "Done today" is kept in
+  `toolkit_checkins.json` in `BAYMAX_DATA_DIR`. `BAYMAX_CHECKINS=0` turns it off.
 - **Look closely:** asked to read or identify something, Ember sends Gemini one
   sharper still: the camera thread's full 640x480 frame instead of the usual small
   video frame. `BAYMAX_LOOK_CLOSELY=0` turns it off.

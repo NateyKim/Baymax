@@ -69,7 +69,10 @@ Orange Pi 4 Pro.
 
 Save the actual microphone, speaker and camera in Setup. Never copy another
 robot's `.env`, API/device keys or `/etc/ember/device.toml`. Confirm the local
-clock/timezone. Stop the older runtime/eye demo before launching this one.
+clock/timezone (`timedatectl`; `sudo timedatectl set-timezone America/New_York`,
+then restart Ember): check-ins and reminders follow it, and an OPI4-Flash card is
+set to `America/Los_Angeles` unless its image settings name another `timezone`.
+Stop the older runtime/eye demo before launching this one.
 Connect a Firmata-compatible Arduino with the documented MAX7219 wiring and set
 `BAYMAX_EYES_PORT` to its actual `/dev/serial/by-id/...` path; the LattePanda
 Leonardo default is not an Orange Pi port. Grant the desktop user serial access

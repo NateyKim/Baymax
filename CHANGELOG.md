@@ -64,7 +64,13 @@
     (e.g. `BAYMAX_VOICE_VOLUME_TOOL=0`, a check-in window, `EMBER_DISCOVERY_ENABLED=0`)
     failed tests written for the defaults once `baymax_cloud` loaded that `.env` on
     import, so its updater rolled back every release (with such a `.env` the old gate
-    failed 13 tests here; it now passes).
+    failed 13 tests here; it now passes). OPI4-Flash images were always set to
+    `America/Los_Angeles`, unmentioned, so on a card in another time zone the daily
+    check-ins, reminders and greeting ran on Pacific time (the morning question at
+    11:00-14:00 in Philadelphia). The image settings now take an optional `timezone`
+    (default unchanged; checked against the image's zone list, written to
+    `dietpi.txt`, `/etc/timezone` and `/etc/localtime`), and the docs say how to
+    check and change it on a running board.
   - Pending on the boards: CPU summed over Ember and its pose/face processes (NPU vs
     `BAYMAX_POSE_BACKEND=cpu`, with and without the fall toolkit), pose round-trip
     time, mic overflows and reply latency over 10 minutes, killing the pose process,

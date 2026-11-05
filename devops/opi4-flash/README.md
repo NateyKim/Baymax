@@ -19,7 +19,8 @@ Run the private configurator or copy `settings.example.json` to
 {
   "branch": "release",
   "wifi": {"ssid": "YOUR WIFI NAME", "password": ""},
-  "gemini_api_key": ""
+  "gemini_api_key": "",
+  "timezone": "America/Los_Angeles"
 }
 ```
 
@@ -39,6 +40,15 @@ Run the private configurator or copy `settings.example.json` to
   Ember starts automatically after installation, sends microphone/camera context
   to Gemini, and may record session audio locally. Keep the key blank if capture
   should wait for manual setup.
+- **Time zone** (optional): the board's clock. Without it a card is set to
+  `America/Los_Angeles`, as every card built before this setting is. Use the home's
+  IANA name, such as `America/New_York` or `Europe/London` (the build checks that the
+  image has it). Daily check-ins (morning 08:00-11:00, afternoon 14:00-16:30, evening
+  18:00-20:30 by default), reminders and the greeting's time of day follow this clock,
+  so a card on Pacific time in Philadelphia asks "how did you sleep" at 11:00-14:00
+  there. To change it on a running card: `sudo timedatectl set-timezone
+  America/New_York` (or `sudo dietpi-config`, Language/Regional Options), then
+  **Restart Ember**; `timedatectl` shows the current one.
 
 Every build generates a distinct hostname and separate random Linux/AnyDesk
 passwords. To use one password you can remember on every card instead, add
