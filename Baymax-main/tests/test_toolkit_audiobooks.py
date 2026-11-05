@@ -1,5 +1,7 @@
 """Audiobooks mixed into Ember's speaker stream; fake library/decoder, no network or devices."""
 import os
+from pathlib import Path
+import tempfile
 import time
 import unittest
 from unittest.mock import patch
@@ -7,7 +9,7 @@ from unittest.mock import patch
 import numpy as np
 
 from features.conversational_ability.processing import InputEnhancer, output_sources
-from features.toolkits import audiobooks, gemini_tools
+from features.toolkits import audiobooks, gemini_tools, librivox
 from features.toolkits.audiobooks import Player
 
 BOOK = {"id": "alice", "title": "Alice", "author": "Carroll",
@@ -444,6 +446,77 @@ class WakeWordTests(unittest.TestCase):
         self.assertTrue(wait_for(lambda: listener.failed))
         self.assertFalse(listener.ready)
         listener.feed(np.zeros(1024, dtype=np.int16))  # Ignored, never raises.
+
+
+class DownloadCacheTests(unittest.TestCase):
+    """The cache is in /tmp, RAM on the Orange Pis: it keeps only the track being played."""
+
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.cache = Path(folder.name) / "ember-audiobooks"
+        self.fetched = []
+        for patcher in (patch.object(librivox, "CACHE", self.cache),
+                        patch.object(librivox.requests, "get", side_effect=self.get)):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def get(self, url, stream=True, timeout=None):
+        self.fetched.append(url.rsplit("/", 2)[-2:])
+        test = self
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def raise_for_status(self):
+                pass
+
+            def iter_content(self, chunk_size):
+                test.assertGreater(chunk_size, 0)
+                yield b"mp3 " * 10
+
+        return Response()
+
+    def cached(self):
+        return sorted(str(path.relative_to(self.cache)) for path in self.cache.rglob("*"))
+
+    def test_each_track_replaces_the_last_and_another_program_clears_the_old_one(self):
+        recording = {"id": "rain sounds", "sections": [{"file": "Rain 1.mp3"}, {"file": "Rain 2.mp3"}]}
+        self.cache.mkdir()
+        (self.cache / "old").mkdir()
+        (self.cache / "old" / "1.mp3.part").write_bytes(b"left by a stopped run")
+        first = librivox.download(BOOK, 0)
+        self.assertEqual(first.read_bytes(), b"mp3 " * 10)
+        self.assertEqual(self.cached(), ["alice", "alice/1.mp3"])
+        librivox.download(BOOK, 1)
+        self.assertEqual(self.cached(), ["alice", "alice/2.mp3"])
+        path = librivox.download(recording, 1)
+        self.assertEqual(self.cached(), ["rain_sounds", "rain_sounds/Rain_2.mp3"])
+        self.assertEqual(path, self.cache / "rain_sounds" / "Rain_2.mp3")
+
+    def test_the_track_already_cached_is_not_downloaded_again(self):
+        librivox.download(BOOK, 1)
+        librivox.download(BOOK, 1)
+        self.assertEqual(self.fetched, [["alice", "2.mp3"]])
+        self.assertEqual(self.cached(), ["alice", "alice/2.mp3"])
+
+    def test_a_file_still_in_use_is_left_for_the_next_track(self):
+        librivox.download(BOOK, 0)
+        unlink = Path.unlink
+
+        def in_use(path, *args, **kwargs):
+            if path.name == "1.mp3":
+                raise PermissionError("in use")  # Windows, while a stopping feeder still reads it
+            return unlink(path, *args, **kwargs)
+        with patch.object(Path, "unlink", in_use):
+            librivox.download(BOOK, 1)
+        self.assertEqual(self.cached(), ["alice", "alice/1.mp3", "alice/2.mp3"])
+        librivox.download(BOOK, 0)
+        self.assertEqual(self.cached(), ["alice", "alice/1.mp3"])
 
 
 if __name__ == "__main__":

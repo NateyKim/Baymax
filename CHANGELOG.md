@@ -70,7 +70,11 @@
     11:00-14:00 in Philadelphia). The image settings now take an optional `timezone`
     (default unchanged; checked against the image's zone list, written to
     `dietpi.txt`, `/etc/timezone` and `/etc/localtime`), and the docs say how to
-    check and change it on a running board.
+    check and change it on a running board. Audiobook chapters and Internet Archive
+    recordings were cached in `/tmp` (RAM on both boards) and never deleted, so
+    days of listening pinned hundreds of MB next to Ember until a reboot; the
+    cache now keeps only the chapter or track being played (a long single-file
+    recording is still held whole while it plays).
   - Pending on the boards: CPU summed over Ember and its pose/face processes (NPU vs
     `BAYMAX_POSE_BACKEND=cpu`, with and without the fall toolkit), pose round-trip
     time, mic overflows and reply latency over 10 minutes, killing the pose process,

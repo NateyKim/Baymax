@@ -144,11 +144,32 @@ def fetch_book(identifier):
                           "length": _parse_length(f.get("length"))} for f in sections]}
 
 
+def _keep_only(path):
+    """Empty the cache but for `path`. One program plays at a time and the feeder decodes
+    each track straight through before asking for the next, so no other cached file is
+    read again. The cache is in /tmp, which is RAM on the Orange Pis: kept, every
+    chapter and recording ever played stayed there until a reboot."""
+    if not CACHE.is_dir():
+        return
+    for item in sorted(CACHE.rglob("*"), reverse=True):  # files before their folders
+        if item == path:
+            continue
+        try:
+            if item.is_dir():
+                item.rmdir()  # once empty
+            else:
+                item.unlink()
+        except OSError:
+            pass  # still open by a feeder that is stopping (Windows): removed next time
+
+
 def download(book, index, cancelled=lambda: False):
-    """Download one chapter to the local cache (once) and return its path."""
+    """Download one chapter (or track) to the local cache, which then holds only it,
+    and return its path."""
     name = book["sections"][index]["file"]
     folder = CACHE / re.sub(r"[^\w.-]", "_", book["id"])
     path = folder / re.sub(r"[^\w.-]", "_", name)
+    _keep_only(path)
     if path.exists():
         return path
     folder.mkdir(parents=True, exist_ok=True)

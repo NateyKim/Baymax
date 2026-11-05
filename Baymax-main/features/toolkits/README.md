@@ -65,7 +65,9 @@ Every added/changed toolkit follows [TESTING_PROTOCOL.md](../../TESTING_PROTOCOL
 
 One `audiobook` tool (`play` with title/author, `pause`, `resume`, `stop`,
 `next`, `status`). `librivox.py` searches the Internet Archive and downloads one
-chapter at a time to a temp cache (search/ranking adapted from PR #2).
+chapter at a time to a temp cache (search/ranking adapted from PR #2). The cache
+keeps only the chapter or track being played, since it is in `/tmp`, which is RAM
+on the Orange Pis.
 `audiobooks.py` decodes with `miniaudio` (`requirements-pc.txt`) on a feeder
 thread into a ~2 s buffer; Ember's speaker callback mixes it in through the
 audio cleanup's `mix_output`, so echo cancellation removes the book from the mic
@@ -162,7 +164,10 @@ what to hear). `pause`, `resume`, `stop`, `next` (recordings), `status` and
   URL is public domain/CC0, CC BY or CC BY-SA are used (the Open Definition
   licenses; any NC or ND item is skipped), and the item's own metadata is
   checked again. MP3 tracks (at most 100) download one at a time to the
-  audiobook cache and play straight through. Status gives the title, creator,
+  audiobook cache and play straight through; the cache keeps only the track
+  playing. A track is downloaded whole before it plays, so a long single-file
+  item stays in `/tmp` (RAM on the Orange Pis) while it plays: an hour of
+  128 kbps MP3 is about 58 MB. Status gives the title, creator,
   license and archive.org page so Ember can attribute it. Licenses are as stated
   by the uploader.
 - **Check-in:** after `BAYMAX_LISTEN_CHECK_MIN` minutes (default 30; 0 never)
