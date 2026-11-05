@@ -58,6 +58,13 @@
     the new connection failed too, although the code said the next connection would
     send it (6afe802 had this; here a fall check-in's paused radio also stayed paused,
     unexplained). It now stays first in line for the connection after.
+    `check_release.py` now ignores the machine's own settings while the checks run
+    (`BAYMAX_*`, `EMBER_*` and API keys leave the environment; its `.env` reads as
+    empty). A 5 Max with `BAYMAX_AUTO_UPDATE=1` and a setting `.env.example` documents
+    (e.g. `BAYMAX_VOICE_VOLUME_TOOL=0`, a check-in window, `EMBER_DISCOVERY_ENABLED=0`)
+    failed tests written for the defaults once `baymax_cloud` loaded that `.env` on
+    import, so its updater rolled back every release (with such a `.env` the old gate
+    failed 13 tests here; it now passes).
   - Pending on the boards: CPU summed over Ember and its pose/face processes (NPU vs
     `BAYMAX_POSE_BACKEND=cpu`, with and without the fall toolkit), pose round-trip
     time, mic overflows and reply latency over 10 minutes, killing the pose process,

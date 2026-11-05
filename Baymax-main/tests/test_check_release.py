@@ -1,11 +1,21 @@
 import contextlib
 import io
+import os
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from check_release import collect_suites, render_report, run_sections
+import dotenv
+from dotenv import dotenv_values, load_dotenv  # bound before the gate starts, as in a module
+
+import check_release
+from check_release import collect_suites, local_settings_ignored, render_report, run_sections
+
+# Documented in .env.example; each failed a test written for the defaults.
+ROBOT_SETTINGS = {"BAYMAX_VOICE_VOLUME_TOOL": "0", "BAYMAX_CHECKIN_MORNING": "07:00-10:00",
+                  "BAYMAX_CHECKIN_AFTERNOON": "13:00-15:00", "BAYMAX_CHECKIN_UPTIME_S": "600",
+                  "EMBER_DISCOVERY_ENABLED": "0", "BAYMAX_TOOLKIT_ENABLED": "0"}
 
 
 class ReviewGateTests(unittest.TestCase):
@@ -34,3 +44,72 @@ class ReviewGateTests(unittest.TestCase):
         self.assertIn("not live validation or release approval", report)
         self.assertIn("[ ] Start Ember", report)
         self.assertIn("approval: PENDING", report)
+
+
+class LocalSettingsTests(unittest.TestCase):
+    """The Orange Pi 5 Max's updater runs the gate before each start, next to the robot's
+    .env; a setting there must not fail tests written for the defaults, or the updater
+    rolls back every release."""
+
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.root = Path(folder.name, "robot", "Baymax-main")
+        self.root.mkdir(parents=True)
+        robot_env = "".join(f"{name}={value}\n" for name, value in ROBOT_SETTINGS.items())
+        (self.root / ".env").write_text(robot_env + "GOOGLE_API_KEY=robot-key\n")
+        (self.root.parent / ".env").write_text("BAYMAX_VOICE=Puck\n")  # found by a bare load_dotenv() too
+        self.own = Path(folder.name, "test-own.env")
+        self.own.write_text("BAYMAX_TEST_OWN=1\n")
+        environment = patch.dict(os.environ, {"BAYMAX_CPU_PINNING": "off", "GOOGLE_API_KEY": "shell-key",
+                                              "EMBER_TEST_UNRELATED": "", "NOT_EMBERS": "kept"})
+        environment.start()
+        self.addCleanup(environment.stop)
+
+    def test_the_machines_settings_and_env_files_are_ignored_while_the_checks_run(self):
+        with local_settings_ignored(self.root):
+            for name in ("BAYMAX_CPU_PINNING", "GOOGLE_API_KEY", "EMBER_TEST_UNRELATED"):
+                self.assertNotIn(name, os.environ)
+            self.assertEqual(os.environ["NOT_EMBERS"], "kept")
+            for path in (self.root / ".env", self.root.parent / ".env", str(self.root / ".." / ".env")):
+                self.assertFalse(load_dotenv(path, override=True))
+                self.assertFalse(dotenv.load_dotenv(path, override=True))
+                self.assertEqual(dotenv_values(path), {})
+            self.assertFalse(set(os.environ) & {*ROBOT_SETTINGS, "GOOGLE_API_KEY", "BAYMAX_VOICE"})
+            self.assertEqual(dotenv_values(self.own), {"BAYMAX_TEST_OWN": "1"})  # a test's own .env
+            self.assertTrue(load_dotenv(self.own))
+            self.assertEqual(os.environ["BAYMAX_TEST_OWN"], "1")
+        # Afterwards: the machine's environment as it was, and its .env readable again.
+        self.assertEqual(os.environ["BAYMAX_CPU_PINNING"], "off")
+        self.assertEqual(os.environ["GOOGLE_API_KEY"], "shell-key")
+        self.assertNotIn("BAYMAX_TEST_OWN", os.environ)
+        self.assertEqual(dotenv_values(self.root / ".env")["BAYMAX_VOICE_VOLUME_TOOL"], "0")
+
+    def test_the_new_features_pass_on_a_robot_that_changed_their_settings(self):
+        names = ["test_voice_volume.VoiceVolumeWiringTests.test_tool_is_offered_and_answered_even_with_the_toolkit_off",
+                 "test_voice_volume.VoiceVolumeWiringTests.test_playback_volume_stays_with_the_audiobook_and_listen_tools",
+                 "test_toolkit_checkins.CheckInTests.test_only_inside_a_window",
+                 "test_toolkit_checkins.CheckInTests.test_never_soon_after_boot_or_before_the_first_session",
+                 "test_toolkit_brain_games.BrainGameToolkitTests"
+                 ".test_on_by_default_with_discovery_and_routed_through_gemini_tools",
+                 "test_toolkit_public.RegistryTests.test_discovery_is_on_by_default_without_the_public_toolkit"]
+        with patch.dict(os.environ, ROBOT_SETTINGS), local_settings_ignored(self.root):
+            load_dotenv(self.root / ".env")  # what baymax_cloud does on import on the robot
+            suite = unittest.TestLoader().loadTestsFromNames(names)
+            result = unittest.TextTestRunner(stream=io.StringIO(), verbosity=0).run(suite)
+        self.assertEqual(result.testsRun, len(names))
+        self.assertTrue(result.wasSuccessful(), result.failures + result.errors)
+
+    def test_the_gate_collects_and_runs_the_checks_with_them_ignored(self):
+        seen = []
+
+        def step(*args):
+            seen.append(os.environ.get("GOOGLE_API_KEY"))
+            return {"core": {"passed": True}}
+        with patch.object(check_release, "collect_suites", side_effect=step), \
+                patch.object(check_release, "run_sections", side_effect=step), \
+                patch.object(check_release, "render_report", return_value=""), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(check_release.main([]), 0)
+        self.assertEqual(seen, [None, None])
+        self.assertEqual(os.environ["GOOGLE_API_KEY"], "shell-key")

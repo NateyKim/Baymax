@@ -553,7 +553,8 @@ class ReconnectTests(unittest.TestCase):
 
 class TranscriptsStayOnRobotTests(unittest.TestCase):
     def test_cloud_never_queues_transcripts_and_drops_old_ones(self):
-        import baymax_cloud
+        with patch("dotenv.load_dotenv"):  # not this machine's .env, for every later test
+            import baymax_cloud
         with tempfile.TemporaryDirectory() as temp, \
                 patch.object(baymax_cloud, "DEVICE_KEY", "999.test"), \
                 patch.object(baymax_cloud, "QUEUE_DIR", temp), \

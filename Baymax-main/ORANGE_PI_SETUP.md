@@ -37,8 +37,9 @@ through the MVP autostart service, as in [MVP.md](MVP.md#automatic-startup):
 2. Add `BAYMAX_AUTO_UPDATE=1` to `Baymax-main/.env` (and `BAYMAX_UPDATE_BRANCH=...` to
    follow another branch than `release`). Before each service start,
    `devops/mvp/update.py` fetches the branch, reinstalls `requirements-orange-pi.txt`
-   when it changed, runs `check_release.py`, and rolls back a version that fails or
-   never reaches listening ([devops/mvp](../devops/mvp/README.md)).
+   when it changed, runs `check_release.py` (which ignores this `.env`, so its
+   settings can't fail the checks), and rolls back a version that fails or never
+   reaches listening ([devops/mvp](../devops/mvp/README.md)).
 
 On an extracted ZIP every service start logs `[UPDATE] Skipped: git rev-parse HEAD
 failed: ... not a git repository`. Without the service (clickables only) nothing

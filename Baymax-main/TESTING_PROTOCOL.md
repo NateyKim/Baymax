@@ -16,7 +16,7 @@ From `Baymax-main`, use the installed environment interpreter:
 .venv/bin/python check_release.py --report .local-review/report.md
 ```
 
-This runs all `tests/test_*.py`, prints separate core and toolkit results, and generates a fresh manual checklist. Exit code 0 requires both sections to contain tests and pass; failures or missing required test files return 1. No API key, capture or live service is needed. Reports overwrite the chosen path, so save completed evidence separately before rerunning. `.local-review/` is ignored by Git.
+This runs all `tests/test_*.py`, prints separate core and toolkit results, and generates a fresh manual checklist. Exit code 0 requires both sections to contain tests and pass; failures or missing required test files return 1. No API key, capture or live service is needed. The checks test the shipped defaults: while they run, this machine's `BAYMAX_*`/`EMBER_*` settings and API keys are out of the environment and its `.env` reads as empty, so a robot's own settings cannot fail them (a test that needs a setting sets it). Reports overwrite the chosen path, so save completed evidence separately before rerunning. `.local-review/` is ignored by Git.
 
 Core checks cover configuration, UI protections, hardware selection, upstream runtime parity and monitor behavior. Toolkit checks cover mocked location/weather behavior, caching, ambiguity, failures and Gemini tool-response routing. The runner also has regression tests for its failure/report behavior. These tests were added for this desktop implementation; they are not a full Baymax suite.
 

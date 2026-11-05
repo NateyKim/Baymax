@@ -35,13 +35,15 @@ block Ember. Each start it:
 2. If the branch moved: switches to it, reinstalls the platform's requirements file
    (the same one Setup picks: `requirements-orange-pi.txt` on Linux ARM64,
    `requirements-macos-intel.txt` on Intel macOS, otherwise `requirements-pc.txt`) only
-   when that file changed, then runs `check_release.py`. Any failure switches back,
-   including pip (15 min limit) or the checks (10 min) running out of time. Together
-   these limits can exceed the service's 20 min start limit. The update is recorded
-   before the switch, so one stopped that way (or by a power cut) after the checkout is
-   rolled back on the next start; one stopped before the checkout is tried again. A
-   rollback records the bad commit before switching back, and one stopped before
-   switching back or during its own package reinstall is finished on the next start.
+   when that file changed, then runs `check_release.py` (with the robot's `.env` and
+   its `BAYMAX_*`/`EMBER_*` settings ignored, so they can't fail it). Any failure
+   switches back, including pip (15 min limit) or the checks (10 min) running out of
+   time. Together these limits can exceed the service's 20 min start limit. The update
+   is recorded before the switch, so one stopped that way (or by a power cut) after the
+   checkout is rolled back on the next start; one stopped before the checkout is tried
+   again. A rollback records the bad commit before switching back, and one stopped
+   before switching back or during its own package reinstall is finished on the next
+   start.
    Known limit (not new): a power cut during the git checkout itself (about a second
    for a large update), the update's or the rollback's, can leave the tree part old,
    part new, or a stale `.git/index.lock`. Later starts can then report local edits or

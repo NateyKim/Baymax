@@ -1,6 +1,9 @@
 """Offline review gate; never opens devices or contacts service providers."""
 import argparse
+import contextlib
 from datetime import datetime, timezone
+import io
+import os
 from pathlib import Path
 import platform
 import subprocess
@@ -8,6 +11,9 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parent
+# A machine's own settings: its .env (Setup, .env.example) or its shell.
+LOCAL_SETTING_PREFIXES = ("BAYMAX_", "EMBER_")
+LOCAL_SETTING_NAMES = {"GOOGLE_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY", "FLASK_SECRET_KEY"}
 REQUIRED_TEST_FILES = {
     "core": {"test_dev_settings.py", "test_devUI_http.py", "test_pc_hardware.py", "test_runtime_monitor.py"},
     "toolkit": {"test_toolkit.py"},
@@ -42,6 +48,43 @@ MANUAL_CHECKLIST = """## Core: live checks (pending until a person records evide
 
 Do not paste API keys, private transcripts or recordings into a public PR.
 """
+
+
+@contextlib.contextmanager
+def local_settings_ignored(root=ROOT):
+    """The checks test the shipped defaults, so they give the same result on every
+    machine. The Orange Pi 5 Max's updater runs them before each start, in the folder
+    that holds the robot's .env: a documented setting there (BAYMAX_VOICE_VOLUME_TOOL=0,
+    a check-in window) failed tests written for the defaults once a module (baymax_cloud)
+    had loaded that .env on import, and every release was rolled back.
+
+    While the checks run, this machine's settings are out of the environment and its
+    .env files (the one in `root` or a folder above, which a bare load_dotenv() finds)
+    read as empty, through every python-dotenv entry point, even one imported earlier.
+    A test's own .env in a temporary folder still loads."""
+    import dotenv.main
+
+    root = Path(root).resolve()
+    ignored = {os.path.normcase(folder / ".env") for folder in (root, *root.parents)}
+    real = dotenv.main.DotEnv
+
+    class WithoutLocalEnv(real):
+        def __init__(self, dotenv_path, stream=None, *args, **kwargs):
+            if dotenv_path and os.path.normcase(Path(dotenv_path).expanduser().resolve()) in ignored:
+                dotenv_path, stream = None, io.StringIO("")
+            super().__init__(dotenv_path, stream, *args, **kwargs)
+
+    saved = dict(os.environ)
+    for name in [name for name in os.environ
+                 if name.startswith(LOCAL_SETTING_PREFIXES) or name in LOCAL_SETTING_NAMES]:
+        del os.environ[name]
+    dotenv.main.DotEnv = WithoutLocalEnv
+    try:
+        yield
+    finally:
+        dotenv.main.DotEnv = real
+        os.environ.clear()
+        os.environ.update(saved)
 
 
 def collect_suites(test_dir):
@@ -96,7 +139,8 @@ def main(argv=None):
     parser.add_argument("--report", type=Path, help="Write a fresh Markdown report/checklist at this path (overwrites it).")
     args = parser.parse_args(argv)
     try:
-        outcomes = run_sections(collect_suites(ROOT / "tests"))
+        with local_settings_ignored():
+            outcomes = run_sections(collect_suites(ROOT / "tests"))
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1
