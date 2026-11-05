@@ -11,8 +11,8 @@
   `startup-greeting` (LattePanda) branch; shared fixes are ported by hand. One
   dependency file, `requirements-orange-pi.txt`, for both boards (memory included;
   rknn-toolkit-lite2 installs on the 4 Pro but is never imported there). Offline
-  only: `check_release.py` passes on macOS (core 536 with 4 skipped, toolkit 238)
-  and OPI4-Flash's tests pass (37, 9 Linux-only skipped). Nothing has run on either
+  only: `check_release.py` passes on macOS (core 541 with 4 skipped, toolkit 241)
+  and OPI4-Flash's tests pass (39, 9 Linux-only skipped). Nothing has run on either
   board in this combination yet.
   - Pose stays in its own process (opi4-demo's fix for minute-late replies and mic
     overflows on the 4 Pro) and the Orange Pi 5's backend now runs inside that child
@@ -50,31 +50,34 @@
     `BAYMAX_DATA_DIR`, which SD-card updates keep. The offline checks also run on
     pushes to `release`, the branch both boards' updaters follow. With the Orange Pi
     pins (NumPy 1.26.4, OpenCV 4.10, MediaPipe 0.10.18, ChromaDB 1.5.8) first on the
-    path, `check_release.py` also passes on macOS (core 536 with 3 skipped, toolkit
-    238); google-genai, miniaudio and other packages that environment lacked came
+    path, `check_release.py` also passes on macOS (core 541 with 3 skipped, toolkit
+    241); google-genai, miniaudio and other packages that environment lacked came
     from the desktop one, so this only approximates CI's Linux ARM64 job.
-  - Fixed after reviewing the combination: a message of Ember's own that a disconnect
-    cut off (a fall check-in, a family message) was lost for good if its resend on
-    the new connection failed too, although the code said the next connection would
-    send it (6afe802 had this; here a fall check-in's paused radio also stayed paused,
-    unexplained). It now stays first in line for the connection after.
-    `check_release.py` now ignores the machine's own settings while the checks run
-    (`BAYMAX_*`, `EMBER_*` and API keys leave the environment; its `.env` reads as
-    empty). A 5 Max with `BAYMAX_AUTO_UPDATE=1` and a setting `.env.example` documents
-    (e.g. `BAYMAX_VOICE_VOLUME_TOOL=0`, a check-in window, `EMBER_DISCOVERY_ENABLED=0`)
-    failed tests written for the defaults once `baymax_cloud` loaded that `.env` on
-    import, so its updater rolled back every release (with such a `.env` the old gate
-    failed 13 tests here; it now passes). OPI4-Flash images were always set to
-    `America/Los_Angeles`, unmentioned, so on a card in another time zone the daily
-    check-ins, reminders and greeting ran on Pacific time (the morning question at
-    11:00-14:00 in Philadelphia). The image settings now take an optional `timezone`
-    (default unchanged; checked against the image's zone list, written to
-    `dietpi.txt`, `/etc/timezone` and `/etc/localtime`), and the docs say how to
-    check and change it on a running board. Audiobook chapters and Internet Archive
-    recordings were cached in `/tmp` (RAM on both boards) and never deleted, so
-    days of listening pinned hundreds of MB next to Ember until a reboot; the
-    cache now keeps only the chapter or track being played (a long single-file
-    recording is still held whole while it plays).
+  - Fixed after reviewing the combination:
+    - A message of Ember's own that a disconnect cut off (a fall check-in, a family
+      message) was lost for good if its resend on the new connection failed too,
+      although the code said the next connection would send it (6afe802 had this;
+      here a fall check-in's paused radio also stayed paused, unexplained). It now
+      stays first in line for the connection after.
+    - `check_release.py` now ignores the machine's own settings while the checks
+      run (`BAYMAX_*`, `EMBER_*` and API keys leave the environment; its `.env`
+      reads as empty). A 5 Max with `BAYMAX_AUTO_UPDATE=1` and a setting
+      `.env.example` documents (e.g. `BAYMAX_VOICE_VOLUME_TOOL=0`, a check-in
+      window, `EMBER_DISCOVERY_ENABLED=0`) failed tests written for the defaults once
+      `baymax_cloud` loaded that `.env` on import, so its updater rolled back every
+      release (with such a `.env` the old gate failed 13 tests here; it now passes).
+    - OPI4-Flash images were always set to `America/Los_Angeles`, unmentioned, so on
+      a card in another time zone the daily check-ins, reminders and greeting ran on
+      Pacific time (the morning question at 11:00-14:00 in Philadelphia). The image
+      settings now take an optional `timezone` (default unchanged; checked against
+      the image's zone list, written to `dietpi.txt`, `/etc/timezone` and
+      `/etc/localtime`), and the docs say how to check and change it on a running
+      board.
+    - Audiobook chapters and Internet Archive recordings were cached in `/tmp` (RAM
+      on both boards) and never deleted, so days of listening pinned hundreds of MB
+      next to Ember until a reboot. The cache now keeps only the chapter or track
+      being played (a long single-file recording is still held whole while it
+      plays).
   - Pending on the boards: CPU summed over Ember and its pose/face processes (NPU vs
     `BAYMAX_POSE_BACKEND=cpu`, with and without the fall toolkit), pose round-trip
     time, mic overflows and reply latency over 10 minutes, killing the pose process,
@@ -83,7 +86,8 @@
     across `ember-update`, image build size/time and an emulated `check_release` on the
     4 Pro; on both, radio and recordings on the board's speaker and their pause for a
     fall check-in or due reminder, the voice volume, "look closely" with the board's
-    camera, daily check-ins, and reconnecting after a Wi-Fi drop.
+    camera, daily check-ins, and reconnecting after a Wi-Fi drop; on a 4 Pro card
+    built with another `timezone`, that the zone survives DietPi's first boot.
 
 - Reconnect after any disconnect. The send and receive loops only reconnected when
   the error text contained 1000, 1006, 1011, CANCELLED or closed. Gemini closing
