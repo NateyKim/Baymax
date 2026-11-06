@@ -98,6 +98,9 @@ def collect_suites(test_dir):
         section = "toolkit" if path.name.startswith("test_toolkit") else "core"
         # Discover every new test module, not only today's fixed list.
         suites[section].addTests(unittest.TestLoader().discover(str(test_dir), pattern=path.name))
+    overall = ROOT.parent / 'tests/overall'
+    if Path(test_dir).resolve() == (ROOT / 'tests').resolve() and overall.is_dir():
+        suites['core'].addTests(unittest.TestLoader().discover(str(overall), pattern='test_*.py'))
     return suites
 
 

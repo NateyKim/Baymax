@@ -1,5 +1,12 @@
 # MVP (unreleased)
 
+- Document OPi4 V1 with an organized feature/source/validation log and an optional
+  Graphify map/viewer. Keep board-specific evidence and pending live checks explicit.
+  Add `devops/EDITING_PROTOCOL.md`, a concise repository README and feature-owned
+  suite definitions under root `tests/`. `tests/run.py` supports full, feature and
+  changed-path validation; shared or unknown changes select all suites. Existing
+  CI/robot checks also include overall syntax, ownership and chat UI checks.
+
 - Add local speech detection and per-turn latency to the chat debugger. User
   bubbles show speech/transcript timing and live reply waits; Ember bubbles show
   reply arrival, scheduled speaker playback and response delays. Keep toolkit
@@ -9,7 +16,7 @@
   streams, keep bounded local metadata, and omit ambiguous speech matches.
 
 - **Ember for Orange Pi: one repository for the Orange Pi 4 Pro and the Orange Pi 5
-  Max.** Made from JoeKojima/Baymax PR #29 (`opi4-demo`), PR #22 (`codex/opi4-flash`),
+  Max.** Made from JoeKojima/Baymax PR #29 (`opi4-demo`), PR #22 (the SD-image builder),
   the Orange Pi 5 Max branches `orangepi5-npu` + `memory-incremental-saves`,
   `orangepi-features` (opi4-demo with Svanik's PRs #23-#28 and #30 and the voice
   volume control: the entries below from "Let the person change how loud" to
