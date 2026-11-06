@@ -93,6 +93,12 @@ proof of live hardware behavior; use [the live checklist](Baymax-main/TESTING_PR
 Full root/deployment CI is provided as a workflow template awaiting a maintainer
 with workflow-write access; see the tests guide's CI activation section.
 
+Every feature also follows the [performance protocol](devops/performance/README.md):
+compare baseline, feature and combined load for CPU/RAM, NPU telemetry,
+temperature and added speech-response latency, with explicit board-specific
+budgets. Feature test commands include the sampler's offline checks; actual
+measurements run separately on the Orange Pi.
+
 ## Graphify
 
 Open [the graph](graphify-out/graph.html) locally after downloading the checkout;

@@ -61,6 +61,7 @@ Paths below are relative to the repository root.
 | Services / updates | `devops/opi4-flash/payload/`, `Baymax-main/deploy/` | Existing installer/update lifecycle; deployment approval is separate from an offline pass |
 | 5 Max setup | `Baymax-main/ORANGE_PI_SETUP.md`, `devops/clickables/` | Board-appropriate installation; not the 4 Pro image |
 | Graphify | `graphify-out/`, this log | Source-linked graph/report and organized feature inventory; documentation only, outside the robot audio/inference loop |
+| Shared feature performance | `devops/performance/`, `tests/performance/` | Baseline/active/combined CPU, RAM, NPU load/availability, temperature and speech latency; explicit budgets and added p95 latency gate. Sampler offline tests are included in each feature selection; board measurements remain pending |
 
 ## Change record
 

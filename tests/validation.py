@@ -36,7 +36,7 @@ def catalog(root=ROOT):
 
 
 def selected_suites(suites, paths, policy):
-    chosen = {'overall'}
+    chosen = {'overall', 'performance'}
     for path in paths:
         path = path.replace('\\', '/')
         if any(fnmatch.fnmatchcase(path, p) for p in policy['full_validation_paths']):
@@ -106,7 +106,7 @@ def main(argv=None):
         return 0
     policy = json.loads((ROOT / 'tests/policy.json').read_text(encoding='utf-8'))
     try:
-        chosen = sorted(set(args.feature) | {'overall'}) if args.feature else (
+        chosen = sorted(set(args.feature) | {'overall', 'performance'}) if args.feature else (
                  selected_suites(suites, changed_paths(args.changed), policy) if args.changed else sorted(suites))
     except (ValueError, subprocess.CalledProcessError) as error:
         parser.error(str(error))

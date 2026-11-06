@@ -92,6 +92,14 @@ green offline run is not proof of physical operation.
   the board, peripherals and data sent to providers before starting a live test.
 - Test audio/camera selection, actual speech/replies, concurrent pose load,
   stop/restart, reconnect recovery, and any changed feature on the target board.
+- Every feature PR includes the [shared performance check](performance/README.md):
+  repeatable baseline/off, active/on and normal combined-load scenarios. Record
+  CPU, parent/child RAM, NPU load/availability, temperature and recognition/reply/
+  playback latency. Compare added p95 latency and resource deltas against explicit
+  board/workload budgets. Report unavailable sensors and misses; do not call a
+  metrics-only run or absent NPU telemetry a passing hardware test. Feature test
+  commands always include the sampler's offline regression checks; actual
+  performance requires the separate live sampler on the target Linux board.
 - A fresh-card build/write/boot is separate from source tests. The 4 Pro image
   does not support the 5 Max or every Orange Pi model.
 - Update/promote the approved runtime through the documented release workflow.

@@ -13,7 +13,7 @@ EXCLUDES = ['**/.local-review/**', '**/tests/**', 'test/**', '**/upstream/**',
             '**/assets/**', 'graphify-out/**', '.github/**',
             'Baymax-main/realtime_gemini_8.py', 'Baymax-main/realtime_gemini_9.py',
             'Baymax-main/realtime_gemini_9_stat_test.py', 'Baymax-main/test_speaker_devices.py',
-            'devops/opi4-flash/test_*.py', 'devops/graphify/test_*.py']
+            'devops/opi4-flash/test_*.py', 'devops/graphify/test_*.py', 'devops/performance/test_*.py']
 
 
 def feature_html(text):

@@ -28,7 +28,14 @@ tests/
     toolkits/{everyday,family,media,information}/
   documentation/graphify/
   deployment/sd_card_flash/
+  performance/                   Shared CPU/RAM/NPU/thermal/latency sampler tests
 ```
+
+`performance/` owns the shared sampler regression checks. Every feature/changed
+selection includes these and overall checks. The separate
+[hardware performance protocol](../devops/performance/README.md) measures CPU,
+RAM, NPU, temperature and added latency under baseline/feature/combined load;
+offline tests do not invent readings or launch a live scenario.
 
 Each folder's `suite.json` owns source patterns and references its test files.
 Existing test modules stay in `Baymax-main/tests` and `devops` so imports and robot

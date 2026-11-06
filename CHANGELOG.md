@@ -1,5 +1,12 @@
 # MVP (unreleased)
 
+- Add a shared, read-only Linux feature performance sampler for CPU, runtime/
+  descendant RSS, system RAM, exposed NPU/thermal sensors and existing speech
+  latency. Compare baseline/active/combined workloads, summarize mean/p95/peak
+  and gate explicit budgets/added p95 latency. Include sampler regression checks
+  in feature selections and the existing release gate; require performance
+  evidence for future feature PRs. Missing telemetry is reported, never zero.
+
 - Document OPi4 V1 with an organized feature/source/validation log and an optional
   Graphify map/viewer. Keep board-specific evidence and pending live checks explicit.
   Add `devops/EDITING_PROTOCOL.md`, a concise repository README and feature-owned
