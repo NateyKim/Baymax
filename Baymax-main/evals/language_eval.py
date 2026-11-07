@@ -50,7 +50,7 @@ def scenario_for(case, mode, voices=None):
         item['text' if mode == 'text' else 'say'] = item.pop('text')
         item['expect'] = dict(item['expect'])
         if mode == 'audio':
-            item['expect']['heard'] = '.+'
+            item['expect']['heard'] = r'[^\W\d_]'
             code = step['expected_languages'][0]
             item['voice'] = (voices or {}).get(code, step.get('tts_voice', code))
         scenario['steps'].append(item)
@@ -64,6 +64,19 @@ def evidence(turn, meta, step):
     return digest(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode())
 
 
+def run_passes(case, run, mode):
+    if 'error' in run or mode not in ('audio', 'text') or len(run.get('turns', [])) != len(case['steps']):
+        return False
+    expected = scenario_for(case, mode)['steps']
+    try:
+        return all('failures' in turn and not turn['failures'] and turn.get('complete')
+                   and not turn.get('timed_out') and turn.get('reply') and turn.get('audio_bytes')
+                   and not live_eval.check(step['expect'], turn)
+                   for step, turn in zip(expected, run['turns']))
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 def classify(case, outcome, meta, reviews):
     if not outcome:
         return 'NOT_RUN'
@@ -73,10 +86,8 @@ def classify(case, outcome, meta, reviews):
     scenario_hash = digest(json.dumps(case, sort_keys=True, ensure_ascii=False).encode())
     if meta.get('scenario_sha256', {}).get(case['name']) != scenario_hash:
         return 'STALE_SCENARIO'
-    if any('error' in run or len(run.get('turns', [])) != len(case['steps'])
-           or any('failures' not in turn or turn['failures'] or turn.get('timed_out') or not turn.get('complete')
-                  or not turn.get('reply') or not turn.get('audio_bytes')
-                  for turn in run.get('turns', [])) for run in runs):
+    # Recheck stored turns too: an old permissive check must not certify punctuation as ASR.
+    if any(not run_passes(case, run, meta.get('mode')) for run in runs):
         return 'FAIL'
     if len(runs) < 3:
         return 'INSUFFICIENT_REPEATS'
@@ -113,7 +124,9 @@ def compile_report(catalog, cases, results=None, reviews=None):
     for language in catalog['languages']:
         case = by_code.get(language['code'])
         status = statuses[case['name']] if case else 'NO_SCENARIO'
-        rows.append(dict(language, status=status))
+        runs = outcomes.get(case['name'], {}).get('runs', []) if case else []
+        passed = sum(run_passes(case, run, meta.get('mode')) for run in runs) if case and status != 'STALE_SCENARIO' else 0
+        rows.append(dict(language, status=status, automatic_passed_runs=passed, attempted_runs=len(runs)))
         if status == 'VALIDATED_AUDIO_SIMULATION':
             valid.append(language['code'])
     lines = ['# Ember language validation', '',
@@ -121,11 +134,14 @@ def compile_report(catalog, cases, results=None, reviews=None):
              'The provider catalog is not proof of support by Ember’s pinned model or robot.',
              '', 'Model: ' + meta.get('model', 'NOT RUN'), 'Mode: ' + meta.get('mode', 'NOT RUN'),
              'Config SHA256: ' + meta.get('config_sha256', 'NOT RUN'),
+             'Source revision: ' + meta.get('source_commit', meta.get('commit', 'NOT RUN')),
+             'Test-only language patch: ' + str(meta.get('staged_language_fix', 'none recorded')),
              '', 'Validated audio simulations: ' + (', '.join(valid) if valid else '**None yet.**'),
              '', 'At least three complete runs, automatic checks and exact-evidence human review',
              'are required. Text-only checks do not validate speech. Physical Pi validation is separate.',
-             '', '| Language | Code | Status |', '|---|---|---|']
-    lines.extend(f'| {row["name"]} | {row["code"]} | {row["status"]} |' for row in rows)
+             'Automatic runs count scripted content/latency checks, not pronunciation or full language proficiency.',
+             '', '| Language | Code | Automatic runs | Status |', '|---|---|---|---|']
+    lines.extend(f'| {row["name"]} | {row["code"]} | {row["automatic_passed_runs"]}/{row["attempted_runs"]} | {row["status"]} |' for row in rows)
     lines += ['', '## Mixed-language scenarios', '']
     lines.extend(f'- {case["name"]}: {statuses[case["name"]]}' for case in cases if case.get('mixed'))
     return dict(metadata=meta, valid_audio_languages=valid, languages=rows, scenarios=statuses), '\n'.join(lines) + '\n'
@@ -209,7 +225,7 @@ def main(argv=None):
         from google import genai
         model_config = json.dumps(config, sort_keys=True, default=str)
         try:
-            commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+            commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True, stderr=subprocess.DEVNULL).strip()
         except (OSError, subprocess.CalledProcessError):
             commit = 'unknown'
         results = {'metadata': dict(format=1, model=model, mode=args.mode, commit=commit,

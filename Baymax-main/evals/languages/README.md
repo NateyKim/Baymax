@@ -43,9 +43,11 @@ stub function results to Google Gemini Live, using the configured API quota.
 The real config's built-in capabilities remain available. No microphone, camera
 or speaker is opened. It does **not** run the robot's local address gate, echo
 cancellation, wake words or device playback; those need separate Pi trials.
-The current OPi4 branch may lack the newer `[LANGUAGE]` prompt; the results record
-that fact without quietly changing it. Test the real config, then compare a
-separately approved prompt change. No personal conversations are required.
+The shared persona now includes the `[LANGUAGE]` adaptation instruction. Results
+still record whether the tested config contains it; the evaluator does not quietly
+rewrite prompts on other branches. The recorded Pi matrix tested the identical
+instruction in a temporary copy before source integration. No personal
+conversations are required.
 Authentication, invalid/unsupported model requests and quota rejection stop the
 batch after the first rejected request. Remaining scenarios stay `NOT_RUN`;
 the runner never silently switches models or retries every language.
@@ -79,6 +81,12 @@ always includes the full candidate list, with explicit states:
 - `VALIDATED_AUDIO_SIMULATION`: all three-or-more runs and every turn passed
   checks and exact-evidence human review, with the saved reply audio intact.
 
+The matrix separately shows automatically passed/attempted runs. Audio input
+transcripts must contain letters; punctuation-only ASR cannot pass. Compiling
+stored results rechecks current expectations, so older permissive checks do not
+certify missing recognition text. These automatic counts are useful evidence
+without pretending language/pronunciation review has happened.
+
 Only the final state enters `valid_audio_languages`. It establishes that scenario
 on the recorded model/config, not blanket proficiency, every dialect, or robot
 hardware compatibility. Add longer conversations, accents/noise and actual Pi
@@ -89,8 +97,9 @@ turn ceiling is a generous example, not the production latency budget.
 The runner returns 1 for failed scenarios and 0 for a preview/capture/review-needed
 report; zero alone does **not** mean all languages validated. Inspect statuses and
 the valid-language list. Raw transcripts/audio stay local; publish only a reviewed
-aggregate report. The committed `docs/features/LANGUAGES.md` starts with no valid
-languages because no live keyed run has been performed here.
+aggregate report. The committed `docs/features/LANGUAGES.md` distinguishes recorded
+live checks, unrun candidates and completed language/audio review. Do not fill
+review fields automatically merely to obtain a green report.
 
 ## Offline regression checks
 

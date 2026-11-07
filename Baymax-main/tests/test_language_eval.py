@@ -16,6 +16,13 @@ from test_live_eval import FakeSession, connector, server
 
 
 class LanguageEvaluationTests(unittest.TestCase):
+    def test_real_mvp_session_includes_language_adaptation(self):
+        _, config = live_eval.mvp_session()
+        prompt = config['system_instruction']
+        self.assertIn('[LANGUAGE]', prompt)
+        self.assertIn('switch with them on your next reply', prompt)
+        self.assertIn('reply in the same mix', prompt)
+
     def setUp(self):
         self.catalog, self.cases = languages.load_inputs()
         self.case = next(case for case in self.cases if case['name'] == 'es')
@@ -25,7 +32,7 @@ class LanguageEvaluationTests(unittest.TestCase):
     def results(self, count=3, mode='text', audio=None):
         meta = dict(self.meta, mode=mode)
         turns = [dict(step=step['text'], heard='synthetic input', reply=reply,
-                      audio_bytes=10, failures=[], complete=True, timed_out=False, **(audio or {}))
+                      audio_bytes=10, failures=[], complete=True, timed_out=False, tools=[], latency_s=1, **(audio or {}))
                  for step, reply in zip(self.case['steps'], ['El cielo es azul.', 'La hierba es verde.', 'A ripe banana is yellow.'])]
         return dict(metadata=meta, scenarios={'es': {'runs': [{'turns': copy.deepcopy(turns)} for _ in range(count)]}})
 
@@ -53,7 +60,9 @@ class LanguageEvaluationTests(unittest.TestCase):
                 live_eval.validate(scenario)
                 self.assertIn('say' if mode == 'audio' else 'text', scenario['steps'][0])
                 if mode == 'audio':
-                    self.assertEqual(scenario['steps'][0]['expect']['heard'], '.+')
+                    pattern = scenario['steps'][0]['expect']['heard']
+                    self.assertNotRegex(' . 123 _ ', pattern)
+                    self.assertRegex('नमस्ते', pattern)
         self.assertEqual(self.case['steps'][-1]['expected_languages'], ['en'])
         self.assertTrue(any(len(step['expected_languages']) > 1 for case in self.cases for step in case['steps']))
 
@@ -62,6 +71,8 @@ class LanguageEvaluationTests(unittest.TestCase):
         report, _ = languages.compile_report(self.catalog, self.cases, results)
         self.assertEqual(report['scenarios']['es'], 'NEEDS_REVIEW')
         self.assertFalse(report['valid_audio_languages'])
+        row = next(row for row in report['languages'] if row['code'] == 'es')
+        self.assertEqual((row['automatic_passed_runs'], row['attempted_runs']), (3, 3))
 
     def test_text_review_cannot_certify_spoken_language(self):
         results = self.results()
@@ -81,6 +92,9 @@ class LanguageEvaluationTests(unittest.TestCase):
         timed_out = self.results()
         timed_out['scenarios']['es']['runs'][0]['turns'][0]['timed_out'] = True
         variants.append((timed_out, 'FAIL'))
+        punctuation = self.results(mode='audio')
+        punctuation['scenarios']['es']['runs'][0]['turns'][0]['heard'] = ' . 123 _ '
+        variants.append((punctuation, 'FAIL'))
         for results, status in variants:
             report, _ = languages.compile_report(self.catalog, self.cases, results, self.reviewed(results))
             self.assertEqual(report['scenarios']['es'], status)
@@ -88,7 +102,7 @@ class LanguageEvaluationTests(unittest.TestCase):
     def test_changed_transcript_invalidates_old_review(self):
         results = self.results()
         reviews = self.reviewed(results)
-        results['scenarios']['es']['runs'][0]['turns'][0]['reply'] = 'Changed response'
+        results['scenarios']['es']['runs'][0]['turns'][0]['reply'] = 'El cielo es muy azul.'
         report, _ = languages.compile_report(self.catalog, self.cases, results, reviews)
         self.assertEqual(report['scenarios']['es'], 'NEEDS_REVIEW')
 

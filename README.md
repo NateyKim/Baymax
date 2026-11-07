@@ -52,6 +52,10 @@ tests/               Overall gate and feature/deployment suite definitions
 test/                Standalone chat UI regression check
 ```
 
+Ember's shared persona follows the speaker's language, follows language switches
+and mixed-language speech, and keeps English internal messages from changing the
+conversation language. This is model guidance; see the measured limitations below.
+
 Conversation and audio live under `features/conversational_ability`; eyes and pose
 have their own packages; toolkits group everyday, family, information and media
 behavior. Existing memory/runtime hooks retain their working entry points.
@@ -67,6 +71,11 @@ conversation, language switches and Hindi-English mixing. The
 [language matrix](docs/features/LANGUAGES.md) separates Google's 99 candidate
 entries from actual model/config-specific validation; none are claimed validated
 until live runs and language/audio review are complete.
+The [Pi simulation report](docs/features/OPI4_LANGUAGE_RESULTS.md) records 80/81
+automated response runs passing, one Polish switching failure, and separate
+synthetic-speech transcription failures. It tested the language instruction in
+a temporary copy; the same instruction is now included in `Baymax-main/features/persona.py`.
+The running robot was not replaced.
 
 ## Orange Pi 4 Pro SD image
 
