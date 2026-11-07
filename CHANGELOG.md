@@ -1,10 +1,30 @@
 # MVP (unreleased)
 
+- Document the authoritative contribution/release route and five owner modes.
+  Require protocol-first Graphify queries for LLM work and a source-freshness CI
+  gate. Add the public source map, PR template and rollout checklist; physical
+  evidence and release approval remain separate. Correct platform-specific test
+  assumptions and wait for asynchronous viewer cleanup in the CI regression test.
+
 - Establish NateyKim/Baymax as the Ember publishing authority. Add deploy,
   needshardwaretest, needssimtest and needssoftwaretest channel branches, with
   offline checks and image build checks on every channel push. Channel image
   checks do not publish or promote container tags. New SD-image configuration
   defaults to this repository and deploy; existing owner settings remain intact.
+
+- Add `features/experimental/` with software, chamber-simulation and physical
+  hardware stages. Language adaptation and offline fall check-ins are software
+  stage only; each defaults off and has its own owner opt-in in Setup. Record
+  the canonical repository and proposed four update channels in
+  `docs/UPDATE_CHANNELS.md`; Channel branches and CI triggers are published in NateyKim/Baymax;
+  branch-protection rules and fleet migration remain pending. Synthetic data injection on a Pi counts as software testing.
+
+- Add English offline fall check-ins in v10 with existing Vosk, local espeak-ng
+  prompts, explicit okay/fallen/help responses, repeated questions until an answer, and unresolved outcomes.
+  Audio streams survive Gemini reconnects; network-only preflight failures allow
+  configured fall monitoring to start offline. Local dependencies must be prepared
+  first. No external alerts or active-release deployment. Isolated Orange Pi 4 Pro software injection test passed with real Vosk, synthetic landmarks/speech and process-level network denial; physical audio/video validation remains pending.
+  See `Baymax-main/features/toolkits/OFFLINE_FALL.md`.
 
 - **Ember for Orange Pi: one repository for the Orange Pi 4 Pro and the Orange Pi 5
   Max.** Made from JoeKojima/Baymax PR #29 (`opi4-demo`), PR #22 (`codex/opi4-flash`),

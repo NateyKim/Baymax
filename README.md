@@ -1,5 +1,21 @@
 # Ember for Orange Pi
 
+**Start here:** [working protocol](docs/WORKING_PROTOCOL.md) · [contributing](CONTRIBUTING.md) · [testing](Baymax-main/TESTING_PROTOCOL.md) · [Graphify map](graphify-out/START_HERE.md).
+
+**Current review work:** [draft PR #1](https://github.com/NateyKim/Baymax/pull/1) contains the owner-opt-in experiments and working-protocol changes. It is for bench review; ordinary devices should stay on an approved `deploy` revision until review and promotion are complete.
+
+**Published authority:** NateyKim/Baymax. Runtime owners use an approved `deploy`
+revision. Contributors branch from this fork's `main`, push a feature branch here
+and open a draft PR targeting `main`; a review PR is not a deployment version.
+Use the PR's head only for deliberate bench review. Lead approval is required
+before a maintainer promotes tested code to a channel. See the working protocol
+for exact pull/push commands and the source/commit evidence expected.
+
+Experiments default off. Language adaptation and offline fall check-ins are
+software-tested only. Your chamber's real camera/mic video/audio replay is the
+simulation stage; physical trials and release approval are separate.
+
+
 Ember's v10 MVP runtime (conversation/personality, local eyes, audio cleanup,
 engage/disengage, reminders, audiobooks, live radio and Internet Archive recordings,
 gentle daily check-ins, brain games, "look closely", a voice volume the person can

@@ -1,0 +1,177 @@
+{
+  "nodes": [
+    {
+      "id": "working_protocol",
+      "label": "START HERE: mandatory working protocol and authority",
+      "file_type": "document",
+      "source_file": "docs/WORKING_PROTOCOL.md",
+      "source_location": "document",
+      "_origin": "semantic",
+      "priority": 100
+    },
+    {
+      "id": "agent_rules",
+      "label": "Mandatory Graphify-first agent instructions",
+      "file_type": "document",
+      "source_file": "AGENTS.md",
+      "source_location": "document",
+      "_origin": "semantic",
+      "priority": 100
+    },
+    {
+      "id": "testing_protocol",
+      "label": "Software, chamber simulation, hardware and release evidence",
+      "file_type": "document",
+      "source_file": "Baymax-main/TESTING_PROTOCOL.md",
+      "source_location": "document",
+      "_origin": "semantic",
+      "priority": 100
+    },
+    {
+      "id": "channel_policy",
+      "label": "Authoritative repository, stable fixes and owner-selected channels",
+      "file_type": "document",
+      "source_file": "docs/UPDATE_CHANNELS.md",
+      "source_location": "document",
+      "_origin": "semantic",
+      "priority": 100
+    },
+    {
+      "id": "contributing",
+      "label": "Professional feature branches, pull requests and review",
+      "file_type": "document",
+      "source_file": "CONTRIBUTING.md",
+      "source_location": "document",
+      "_origin": "semantic",
+      "priority": 100
+    },
+    {
+      "id": "readme",
+      "label": "Which branch and pull request to use",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "document",
+      "_origin": "semantic",
+      "priority": 90
+    },
+    {
+      "id": "experiments",
+      "label": "Owner opt-ins and experimental testing stages",
+      "file_type": "document",
+      "source_file": "Baymax-main/features/experimental/README.md",
+      "source_location": "document",
+      "_origin": "semantic",
+      "priority": 90
+    },
+    {
+      "id": "software_stage",
+      "label": "Software testing includes direct Pi injection",
+      "file_type": "document",
+      "source_file": "Baymax-main/features/experimental/tested_in_software/README.md",
+      "source_location": "document",
+      "_origin": "semantic",
+      "priority": 80
+    },
+    {
+      "id": "sim_stage",
+      "label": "Simulation means chamber video and audio replay",
+      "file_type": "document",
+      "source_file": "Baymax-main/features/experimental/tested_in_sim/README.md",
+      "source_location": "document",
+      "_origin": "semantic",
+      "priority": 80
+    },
+    {
+      "id": "hardware_stage",
+      "label": "Physical hardware trials and lead approval",
+      "file_type": "document",
+      "source_file": "Baymax-main/features/experimental/tested_in_hardware/README.md",
+      "source_location": "document",
+      "_origin": "semantic",
+      "priority": 80
+    }
+  ],
+  "edges": [
+    {
+      "source": "working_protocol",
+      "target": "agent_rules",
+      "relation": "requires_reading",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1,
+      "source_file": "docs/WORKING_PROTOCOL.md",
+      "source_location": "Mandatory Graphify entry point for LLM work"
+    },
+    {
+      "source": "working_protocol",
+      "target": "testing_protocol",
+      "relation": "requires_reading",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1,
+      "source_file": "docs/WORKING_PROTOCOL.md",
+      "source_location": "Mandatory Graphify entry point for LLM work"
+    },
+    {
+      "source": "working_protocol",
+      "target": "channel_policy",
+      "relation": "requires_reading",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1,
+      "source_file": "docs/WORKING_PROTOCOL.md",
+      "source_location": "Mandatory Graphify entry point for LLM work"
+    },
+    {
+      "source": "working_protocol",
+      "target": "contributing",
+      "relation": "requires_reading",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1,
+      "source_file": "docs/WORKING_PROTOCOL.md",
+      "source_location": "Mandatory Graphify entry point for LLM work"
+    },
+    {
+      "source": "working_protocol",
+      "target": "readme",
+      "relation": "requires_reading",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1,
+      "source_file": "docs/WORKING_PROTOCOL.md",
+      "source_location": "Mandatory Graphify entry point for LLM work"
+    },
+    {
+      "source": "working_protocol",
+      "target": "experiments",
+      "relation": "requires_reading",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1,
+      "source_file": "docs/WORKING_PROTOCOL.md",
+      "source_location": "Mandatory Graphify entry point for LLM work"
+    },
+    {
+      "source": "working_protocol",
+      "target": "software_stage",
+      "relation": "requires_reading",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1,
+      "source_file": "docs/WORKING_PROTOCOL.md",
+      "source_location": "Mandatory Graphify entry point for LLM work"
+    },
+    {
+      "source": "working_protocol",
+      "target": "sim_stage",
+      "relation": "requires_reading",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1,
+      "source_file": "docs/WORKING_PROTOCOL.md",
+      "source_location": "Mandatory Graphify entry point for LLM work"
+    },
+    {
+      "source": "working_protocol",
+      "target": "hardware_stage",
+      "relation": "requires_reading",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1,
+      "source_file": "docs/WORKING_PROTOCOL.md",
+      "source_location": "Mandatory Graphify entry point for LLM work"
+    }
+  ]
+}

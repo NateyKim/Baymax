@@ -1,0 +1,14 @@
+{
+  "source_hashes": {
+    "docs/WORKING_PROTOCOL.md": "f575de9d0d625a8fce9c9bb98e763eefb45d8932fd95fbe567d199fff4aaef92",
+    "AGENTS.md": "f451e24b8e1884623e0e1a03671e74e91f0e1fbe90bf64acf16b58c6839ab599",
+    "Baymax-main/TESTING_PROTOCOL.md": "aad6ab5fab5525b01bfbb6c5a1f7b16b3a71695202e81b20607c06b3fcc172ee",
+    "docs/UPDATE_CHANNELS.md": "5d7b96089d3f2232cb6161d513965582ee8a75007f8f2037538899fad879d75c",
+    "CONTRIBUTING.md": "b96b6f072ff5d592914144c0d745f365214c54aeca0e7f089802e01a8e72e3aa",
+    "README.md": "dbfa5dbfec2f40b13af40020dc71a02bcf392d00bdc26a57a21390d04718afe2",
+    "Baymax-main/features/experimental/README.md": "40498693da083b148ae98e2c07c0b6e658b34b086ed3b3174f6426872f64b815",
+    "Baymax-main/features/experimental/tested_in_software/README.md": "ea115a14b75be0ded1d2b8f35d0a6b42fbfb09588257ef5b337998356b8fe431",
+    "Baymax-main/features/experimental/tested_in_sim/README.md": "9f57356f66e121056fcb6a8d855c65a86c443ff97a45237d7d81f21113c04097",
+    "Baymax-main/features/experimental/tested_in_hardware/README.md": "f23d68ae0eb7473293d3a84d13fba0eeb387e6b08baf9655a1e9d487282ffb42"
+  }
+}

@@ -13,7 +13,7 @@ on:
   pull_request:
   push:
     # All channel pushes run checks, including documentation and deployment changes.
-    branches: [main, MVP, release, deploy, needshardwaretest, needssimtest, needssoftwaretest]
+    branches: [main, MVP, release, deploy, needshardwaretest, needssimtest, needssoftwaretest, experimental]
   workflow_dispatch:
 
 permissions:
@@ -66,6 +66,12 @@ jobs:
 
       - name: Install ${{ matrix.requirements }} (no credentials or capture)
         run: python -m pip install -r ${{ matrix.requirements }}
+
+      - name: Check working protocol and Graphify map
+        working-directory: .
+        run: |
+          python devops/graphify/check.py
+          python -m unittest discover -s devops/graphify -p "test_*.py"
 
       - name: Run core and toolkit offline gate
         run: python check_release.py --report .local-review/report.md

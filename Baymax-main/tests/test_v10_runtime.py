@@ -395,7 +395,7 @@ class ReconnectTests(unittest.TestCase):
             "_address_gate": AddressGate(enabled=False), "monitor": Mock(), "public_toolkit": Mock(),
             "genai": SimpleNamespace(Client=lambda **kw: SimpleNamespace(aio=SimpleNamespace(
                 live=SimpleNamespace(connect=lambda **kw: Connect())))),
-            "API_KEY": "test", "MODEL": "m", "_build_config": dict, "_boot_status": Mock(),
+            "audio_queue_mic": asyncio.Queue(), "_offline_fall": None, "API_KEY": "test", "MODEL": "m", "_build_config": dict, "_boot_status": Mock(),
             "_memory_embedder": None, "MEMORY_RETRIEVAL_ENABLED": False, "FALL_DETECTION_ENABLED": False,
             "FALL_ANGLE_THRESHOLD": 0, "FALL_STAY_DOWN_SECONDS": 0, "FALL_DETECTION_FPS": 0,
             "POSE_TRACKING_ENABLED": True, "RANDOM_INITIATION_ENABLED": False,
@@ -406,10 +406,10 @@ class ReconnectTests(unittest.TestCase):
             "fall_worker": SimpleNamespace(alert_monitor=forever), "_shutdown_event": None,
         }
         with patch("test_public_core_integration.CORE", V10):
-            for name in ("_flush_playback", "_abandon_reply", "_send_cut_off_prompts", "_abort_connection", "run"):
+            for name in ("_flush_playback", "_abandon_reply", "_send_cut_off_prompts", "_abort_connection", "_run_gemini"):
                 load_function(name, namespace)
         with patch("builtins.print"), patch("asyncio.sleep", AsyncMock()), self.assertRaises(Stop):
-            asyncio.run(namespace["run"]())
+            asyncio.run(namespace["_run_gemini"]())
         return sessions, namespace
 
     async def cut_off_alert(self, index, session, namespace):
@@ -545,10 +545,13 @@ class ReconnectTests(unittest.TestCase):
 
     def test_every_session_end_abandons_the_reply_and_drops_the_socket_before_leaving_connect(self):
         source = V10.read_text(encoding="utf-8")
-        run = source[source.index("async def run():"):source.index("def _boot_status")]
+        run = source[source.index("async def _run_gemini():"):source.index("def _boot_status")]
         cleanup = run[run.index("finally:"):]
         self.assertLess(cleanup.index("_abandon_reply()"), cleanup.index("_abort_connection(live_session)"))
-        self.assertLess(cleanup.index("_abort_connection(live_session)"), cleanup.index("output_stream.stop()"))
+        self.assertNotIn("output_stream.stop()", run)  # Reconnect must preserve local check-in audio.
+        lifetime = source[source.index("async def run():"):source.index("async def _run_gemini():")]
+        self.assertIn("output_stream.stop()", lifetime)
+        self.assertIn("output_stream.close()", lifetime)
 
 
 class TranscriptsStayOnRobotTests(unittest.TestCase):
@@ -636,15 +639,19 @@ class LiveViewTests(unittest.TestCase):
         first = parts(2)
         self.assertEqual(len(drawn), 1)
         self.assertEqual(first[0], first[1])                     # re-sent, not re-drawn or re-encoded
-        time.sleep(0.3)
-        self.assertEqual(ns["_mjpeg_viewers"], 0)               # the viewer left
+        deadline = time.monotonic() + 5
+        while ns["_mjpeg_viewers"] and time.monotonic() < deadline:
+            time.sleep(0.02)
+        self.assertEqual(ns["_mjpeg_viewers"], 0)               # TCP close is asynchronous.
         # A new picture each frame while watched: the stream follows it.
         show(30)
         seen = parts(8, {3: lambda: show(200)})
         means = [int(cv2.imdecode(np.frombuffer(b, np.uint8), cv2.IMREAD_COLOR).mean()) for b in seen]
         self.assertLessEqual(abs(means[0] - 30), 2)
         self.assertLessEqual(abs(means[-1] - 200), 2)
-        time.sleep(0.3)
+        deadline = time.monotonic() + 5
+        while ns["_mjpeg_viewers"] and time.monotonic() < deadline:
+            time.sleep(0.02)
         self.assertEqual(ns["_mjpeg_viewers"], 0)
 
 
@@ -808,7 +815,12 @@ class PoseModelDownloadTests(unittest.TestCase):
         (root / "release").mkdir()
         self.shared = root / "shared" / "pose_landmarker_lite.task"
         self.path = root / "release" / "pose_landmarker_lite.task"
-        self.path.symlink_to(self.shared)                  # dangling until the first download
+        try:
+            self.path.symlink_to(self.shared)              # dangling until the first download
+        except OSError as error:
+            if os.name == 'nt' and getattr(error, 'winerror', None) == 1314:
+                self.skipTest('Windows account lacks symbolic-link privilege')
+            raise
 
     def ensure(self, retrieve):
         ns = {"os": os, "urllib": SimpleNamespace(request=SimpleNamespace(urlretrieve=retrieve)),

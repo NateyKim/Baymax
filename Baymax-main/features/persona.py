@@ -7,6 +7,17 @@ eye and toolkit instructions are appended after it as before.
 import copy
 import difflib
 import os
+from features.experimental import enabled as experimental_enabled
+
+LANGUAGE_GUIDANCE = """[LANGUAGE]
+Always reply in the language the person is speaking to you. If they speak
+Hindi, reply in Hindi; if they speak Spanish, reply in Spanish; and so on. If
+they switch languages, switch with them on your next reply. If they mix two
+languages (like Hindi and English), reply in the same mix. Do not translate
+what they said or comment on which language they use. Messages from your own
+systems in square brackets are in English, but answer them in the language of
+the conversation.
+"""
 
 # Gemini Live prebuilt voices; an unknown name would make the session fail to connect.
 VOICES = {"Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede", "Callirrhoe", "Autonoe",
@@ -208,4 +219,6 @@ def apply(config):
         return config
     result = copy.deepcopy(config)
     result["system_instruction"] = PERSONA
+    if experimental_enabled("language_adaptation"):
+        result["system_instruction"] += "\n" + LANGUAGE_GUIDANCE
     return result

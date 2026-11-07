@@ -105,6 +105,7 @@ class FallWorker:
         self.last_result = None
         self.samples = deque(maxlen=30)
         self.dropped = 0
+        self.local_checkin = None
         self.shared = False                 # landmarks come from the core's pose model
         self.pose_device = "CPU"            # where the core's pose model runs: "CPU" or "NPU"
         self.running_state = "Running on CPU"
@@ -264,6 +265,9 @@ class FallWorker:
 
     async def _alerts(self, session, shutdown_event):
         while not shutdown_event.is_set():
+            if self.local_checkin is not None and self.local_checkin.ready:
+                await asyncio.sleep(0.1)
+                continue
             alert = self.pop_alert()
             if alert:
                 import runtime_monitor

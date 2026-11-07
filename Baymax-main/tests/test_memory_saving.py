@@ -498,7 +498,10 @@ class TeardownTests(unittest.TestCase):
               "fall_worker": SimpleNamespace(alert_monitor=forever), "monitor_queues": forever,
               # The reconnect fix's per-session steps (tested in test_v10_runtime.ReconnectTests).
               "_send_cut_off_prompts": forever, "_abandon_reply": Mock(), "_abort_connection": Mock()}
-        load_function("run", ns)
+        ns["audio_queue_mic"] = asyncio.Queue()
+        ns["_offline_fall"] = None
+        load_function("_run_gemini", ns)
+        ns["run"] = ns["_run_gemini"]
         return ns
 
     def test_a_stop_starts_the_clock_and_skips_the_reconnect_pause(self):

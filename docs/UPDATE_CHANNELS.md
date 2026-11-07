@@ -8,6 +8,7 @@ not merge forks automatically.
 
 | Channel branch | Intended readiness |
 |---|---|
+| `experimental` | Unvalidated development for bench use only |
 | `needssoftwaretest` | Development candidate awaiting software validation |
 | `needssimtest` | Software-tested candidate awaiting chamber video/audio replay |
 | `needshardwaretest` | Chamber-tested candidate awaiting controlled physical trials |
@@ -64,3 +65,7 @@ not establish chamber/hardware readiness or guarantee every failure rolls back.
 Validate update, health-failure, power-loss and recovery behavior for each board
 before fleet rollout. Feature test status and feature opt-in are separate from
 the owner's update channel.
+
+Experimental features require separate owner opt-ins; see [feature stages](../Baymax-main/features/experimental/README.md).
+
+Approved deploy fixes flow into testing branches through reviewed sync PRs. Never merge channels on the robot. See [working protocol](WORKING_PROTOCOL.md) and [rollout checklist](ROLLOUT_TODO.md).
