@@ -395,7 +395,7 @@ class ReconnectTests(unittest.TestCase):
             "_address_gate": AddressGate(enabled=False), "monitor": Mock(), "public_toolkit": Mock(),
             "genai": SimpleNamespace(Client=lambda **kw: SimpleNamespace(aio=SimpleNamespace(
                 live=SimpleNamespace(connect=lambda **kw: Connect())))),
-            "API_KEY": "test", "MODEL": "m", "_build_config": dict, "_boot_status": Mock(),
+            "audio_queue_mic": asyncio.Queue(), "_offline_fall": None, "API_KEY": "test", "MODEL": "m", "_build_config": dict, "_boot_status": Mock(),
             "_memory_embedder": None, "MEMORY_RETRIEVAL_ENABLED": False, "FALL_DETECTION_ENABLED": False,
             "FALL_ANGLE_THRESHOLD": 0, "FALL_STAY_DOWN_SECONDS": 0, "FALL_DETECTION_FPS": 0,
             "POSE_TRACKING_ENABLED": True, "RANDOM_INITIATION_ENABLED": False,
@@ -406,10 +406,10 @@ class ReconnectTests(unittest.TestCase):
             "fall_worker": SimpleNamespace(alert_monitor=forever), "_shutdown_event": None,
         }
         with patch("test_public_core_integration.CORE", V10):
-            for name in ("_flush_playback", "_abandon_reply", "_send_cut_off_prompts", "_abort_connection", "run"):
+            for name in ("_flush_playback", "_abandon_reply", "_send_cut_off_prompts", "_abort_connection", "_run_gemini"):
                 load_function(name, namespace)
         with patch("builtins.print"), patch("asyncio.sleep", AsyncMock()), self.assertRaises(Stop):
-            asyncio.run(namespace["run"]())
+            asyncio.run(namespace["_run_gemini"]())
         return sessions, namespace
 
     async def cut_off_alert(self, index, session, namespace):
@@ -545,10 +545,13 @@ class ReconnectTests(unittest.TestCase):
 
     def test_every_session_end_abandons_the_reply_and_drops_the_socket_before_leaving_connect(self):
         source = V10.read_text(encoding="utf-8")
-        run = source[source.index("async def run():"):source.index("def _boot_status")]
+        run = source[source.index("async def _run_gemini():"):source.index("def _boot_status")]
         cleanup = run[run.index("finally:"):]
         self.assertLess(cleanup.index("_abandon_reply()"), cleanup.index("_abort_connection(live_session)"))
-        self.assertLess(cleanup.index("_abort_connection(live_session)"), cleanup.index("output_stream.stop()"))
+        self.assertNotIn("output_stream.stop()", run)  # Reconnect must preserve local check-in audio.
+        lifetime = source[source.index("async def run():"):source.index("async def _run_gemini():")]
+        self.assertIn("output_stream.stop()", lifetime)
+        self.assertIn("output_stream.close()", lifetime)
 
 
 class TranscriptsStayOnRobotTests(unittest.TestCase):

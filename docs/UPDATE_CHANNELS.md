@@ -64,3 +64,5 @@ not establish chamber/hardware readiness or guarantee every failure rolls back.
 Validate update, health-failure, power-loss and recovery behavior for each board
 before fleet rollout. Feature test status and feature opt-in are separate from
 the owner's update channel.
+
+Experimental features require separate owner opt-ins; see [feature stages](../Baymax-main/features/experimental/README.md).

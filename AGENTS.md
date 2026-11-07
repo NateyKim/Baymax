@@ -1,5 +1,7 @@
 # Ember development instructions
 
+- Follow `docs/UPDATE_CHANNELS.md` and `Baymax-main/features/experimental/README.md`. Experiments are off unless the owner opts in per feature. Language adaptation and offline fall check-ins remain `tested_in_software` until chamber video/audio replay evidence exists; injected data on a Pi alone is software testing. Preserve sim/hardware evidence and lead release review.
+
 - The documented desktop entry point is `Baymax-main/run_pc.py`, using Gemini Live version 8. Confirm the actual hardware entry point before claiming deployed parity; version 9 has additional behavior.
 - Preserve the base conversation prompt, Gemini models, audio sample rates and processing. Organize core systems under `Baymax-main/features/`: `memory_palace/`, `person_recognition/`, and callable capabilities in `toolkits/`. Put OS/device changes in `pc_hardware.py`.
 - Do not open extra microphone/camera streams in toolkit features. Do not commit credentials, recordings, runtime snapshots, local databases or virtual environments.

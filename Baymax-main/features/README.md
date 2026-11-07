@@ -13,6 +13,7 @@ live conversation still needs evaluation for brevity, relevance and turn balance
 
 ```text
 features/
+  experimental/       Owner opt-ins and software / chamber / hardware test stages
   memory_palace/       Connected memories, interests, relationships and goals
   person_recognition/ Recognized people and confirmed identity context
   toolkits/           Callable information sources and other bounded actions
@@ -38,6 +39,10 @@ Feature package imports must not start providers, open devices or run background
 workers. Runtime startup owns lifecycle and enablement; each implemented feature
 needs documented inputs, outputs, data flows and tests. Runtime data stays under
 the existing `BAYMAX_DATA_DIR`, outside the source tree in Docker.
+
+See [experimental features](experimental/README.md) for owner opt-ins and the
+three test stages. Language adaptation and offline fall check-ins are currently
+software-tested only and are off unless the owner opts in through Setup.
 
 [Conversational ability](conversational_ability/README.md) is implemented independently
 of people recognition and memory. Memory Palace is reviewed in PR #13.
