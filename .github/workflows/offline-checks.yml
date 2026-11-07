@@ -86,5 +86,6 @@ jobs:
         if: always()
         with:
           name: offline-report-${{ matrix.os }}
+          retention-days: 7
           path: Baymax-main/.local-review/report.md
           if-no-files-found: ignore
