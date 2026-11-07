@@ -62,6 +62,12 @@ The chat debugger shows local speech activity before a Gemini transcript,
 updating per-turn speech/transcript/reply/playback timings, and one centered
 updating bubble per toolkit call. Speech and DAC timings are estimates.
 
+[Multilingual simulations](Baymax-main/evals/languages/README.md) exercise native
+conversation, language switches and Hindi-English mixing. The
+[language matrix](docs/features/LANGUAGES.md) separates Google's 99 candidate
+entries from actual model/config-specific validation; none are claimed validated
+until live runs and language/audio review are complete.
+
 ## Orange Pi 4 Pro SD image
 
 The reusable builder is in [devops/opi4-flash](devops/opi4-flash/README.md).

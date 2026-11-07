@@ -1,96 +1,97 @@
 [Organized OPi4 V1 feature log](../docs/features/FEATURE_LOG.md) · [Interactive graph](graph.html) · [Rendered feature log](FEATURE_LOG.html)
 
-# Graph Report - Baymax  (2026-11-05)
+# Graph Report - Baymax  (2026-11-06)
 
 ## Corpus Check
-- 197 files · ~175,252 words
+- 203 files · ~183,866 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 47 file(s) not represented in the graph (top: .service 11, (none) 8, .cmd 7)
 
 ## Summary
-- 1876 nodes · 3200 edges · 129 communities (72 shown, 57 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 106 edges (avg confidence: 0.86)
+- 1912 nodes · 3264 edges · 130 communities (74 shown, 56 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 107 edges (avg confidence: 0.86)
 - Token usage: structural extraction uses no LLM; semantic usage was not reported by the host.
 
 ## Community Hubs (Navigation)
 - Callable Tools
-- Physical Eyes
+- Pose and Inference
+- Runtime and Setup
+- Conversation and Audio
 - Everyday Support
 - Runtime and Setup
 - Callable Tools
 - Runtime and Setup
+- Callable Tools
 - Feature Documentation
-- Runtime and Setup
-- Conversation and Audio
 - Pose and Inference
 - SD Card Builder
 - Pose and Inference
-- Conversation and Audio
 - Installation and Updates
 - Conversation and Audio
 - Pose and Inference
 - Callable Tools
 - Runtime and Setup
-- Callable Tools
 - Runtime and Setup
 - Runtime and Setup
 - Pose and Inference
 - Runtime and Setup
+- Runtime and Setup
 - Callable Tools
+- Runtime and Setup
+- Callable Tools
+- Runtime and Setup
+- Runtime and Setup
+- Runtime and Setup
+- Runtime and Setup
 - Pose and Inference
-- Callable Tools
 - Runtime and Setup
-- Callable Tools
-- Runtime and Setup
-- Runtime and Setup
-- Runtime and Setup
-- Runtime and Setup
-- Pose and Inference
-- Callable Tools
 - Conversation and Audio
 - Runtime and Setup
 - Runtime and Setup
-- Callable Tools
 - Runtime and Setup
 - Conversation and Audio
 - Callable Tools
 - Family Connections
+- Physical Eyes
 - Installation and Updates
+- Physical Eyes
+- Pose and Inference
+- Callable Tools
 - Runtime and Setup
 - Runtime and Setup
+- Callable Tools
+- Physical Eyes
+- Callable Tools
+- Callable Tools
+- Callable Tools
+- Runtime and Setup
+- Runtime and Setup
+- Runtime and Setup
+- Physical Eyes
 - Family Connections
-- Callable Tools
-- Runtime and Setup
-- Runtime and Setup
-- Runtime and Setup
-- Runtime and Setup
-- Runtime and Setup
-- Family Connections
-- Callable Tools
-- Runtime and Setup
-- Runtime and Setup
-- SD Card Builder
-- Callable Tools
-- Conversation and Audio
-- Callable Tools
 - Everyday Support
-- Installation and Updates
-- Pose and Inference
-- Callable Tools
+- Runtime and Setup
+- Family Connections
 - Callable Tools
 - Runtime and Setup
+- Runtime and Setup
+- SD Card Builder
 - Conversation and Audio
-- Pose and Inference
-- Pose and Inference
+- Callable Tools
+- Installation and Updates
+- Callable Tools
+- Runtime and Setup
+- Callable Tools
+- Conversation and Audio
+- Physical Eyes
 - Runtime and Setup
 - Runtime and Setup
 - Runtime and Setup
 - Installation and Updates
-- Pose and Inference
-- Pose and Inference
+- Physical Eyes
+- Callable Tools
 - Runtime and Setup
-- Runtime and Setup
-- Pose and Inference
+- Callable Tools
 - Installation and Updates
 - Installation and Updates
 - Runtime and Setup
@@ -99,7 +100,6 @@
 - Runtime and Setup
 - SD Card Builder
 - Installation and Updates
-- Pose and Inference
 - Runtime and Setup
 - Runtime and Setup
 - Installation and Updates
@@ -159,59 +159,59 @@
 - **Shared pose and fall-check-in flow** — baymax_main_features_toolkits_fall_detection_fall_toolkit, baymax_main_features_toolkits_fall_detection_shared_pose, baymax_main_features_pose_readme_vision_child, baymax_main_features_pose_readme_pose, baymax_main_features_toolkits_fall_detection_fall_checkin [EXTRACTED 1.00]
 - **Family messages and everyday reminder sync** — baymax_main_features_toolkits_family_readme_family, baymax_main_features_toolkits_family_readme_app_sync, baymax_main_features_toolkits_family_readme_family_store, baymax_main_features_toolkits_everyday_readme_everyday, baymax_main_features_toolkits_family_readme_confirmed_replies [EXTRACTED 1.00]
 
-## Communities (129 total, 57 thin omitted)
+## Communities (130 total, 56 thin omitted)
 
 ### Community 0 - "Callable Tools"
 Cohesion: 0.05
 Nodes (29): ConversationSources, discovery_enabled(), enabled_names(), extend_config(), handle_tool_call(), run_call(), Toolkit, Headlines (+21 more)
 
-### Community 1 - "Physical Eyes"
+### Community 1 - "Pose and Inference"
 Cohesion: 0.05
-Nodes (20): attach(), AutoEyes, cue(), medical_alert(), reply_cue(), requested(), clear_failures(), expected_sensors() (+12 more)
+Nodes (24): compare_raw(), alignment_rect(), associate(), decode_detections(), decode_landmarks(), Detection, detector_roi(), _iou() (+16 more)
 
-### Community 2 - "Everyday Support"
+### Community 2 - "Runtime and Setup"
+Cohesion: 0.06
+Nodes (39): classify(), compile_report(), digest(), evidence(), load_inputs(), main(), review_template(), scenario_for() (+31 more)
+
+### Community 3 - "Conversation and Audio"
+Cohesion: 0.05
+Nodes (15): ResidualEcho, apply(), audio_ready(), enabled(), Engagement, heard(), register(), create() (+7 more)
+
+### Community 4 - "Everyday Support"
 Cohesion: 0.07
 Nodes (19): _at(), _candidates(), _clock(), _days_in_month(), describe(), device_timezone(), _ints(), local_start() (+11 more)
 
-### Community 3 - "Runtime and Setup"
+### Community 5 - "Runtime and Setup"
 Cohesion: 0.07
 Nodes (38): _alert_recipients(), auth_login(), auth_logout(), auth_me(), auth_resend(), auth_signup(), auth_verify(), camera_stream() (+30 more)
 
-### Community 4 - "Callable Tools"
+### Community 6 - "Callable Tools"
 Cohesion: 0.05
 Nodes (54): Fall package requirements, Optional strict address gate, Whole-frame PCM processing, Conversation and turn-taking, Existing Gemini Live session, Context compression and session resumption, Local speech and latency estimates, WebRTC echo cancellation and cleanup (+46 more)
 
-### Community 5 - "Runtime and Setup"
+### Community 7 - "Runtime and Setup"
 Cohesion: 0.07
 Nodes (20): _build_transcript(), _collect_segments(), main(), _merge_segments(), _poll_jobs(), _report_failure(), _run_analysis(), _enqueue() (+12 more)
 
-### Community 6 - "Feature Documentation"
+### Community 8 - "Callable Tools"
+Cohesion: 0.05
+Nodes (23): _clean_query(), _covers_query(), download(), fetch_book(), _ia_search(), _keep_only(), _lucene_terms(), _normalise_title() (+15 more)
+
+### Community 9 - "Feature Documentation"
 Cohesion: 0.06
 Nodes (51): Independent Ember and Monitor user services, MVP startup and update guide, Opt-in release updater with rollback, On-board device settings, PortAudio / PipeWire / WirePlumber audio packages, Compiler, Python, Git and network system packages, XFCE / LightDM / Xorg desktop packages, Image system package list (+43 more)
 
-### Community 7 - "Runtime and Setup"
-Cohesion: 0.07
-Nodes (30): api_key(), _assigned(), card(), check(), core_session(), declared_tools(), disclosure(), image_file() (+22 more)
+### Community 10 - "Pose and Inference"
+Cohesion: 0.08
+Nodes (21): ChildPose, _close_quietly(), create_pose_backend(), driver_hint(), _driver_hint(), _flat(), installed_rknnlite_version(), npu_unavailable_reason() (+13 more)
 
-### Community 8 - "Conversation and Audio"
-Cohesion: 0.06
-Nodes (13): apply(), audio_ready(), enabled(), Engagement, heard(), _listener(), register(), download_model() (+5 more)
-
-### Community 9 - "Pose and Inference"
-Cohesion: 0.07
-Nodes (21): _close_quietly(), create_pose_backend(), driver_hint(), _driver_hint(), _flat(), installed_rknnlite_version(), npu_unavailable_reason(), _open_npu() (+13 more)
-
-### Community 10 - "SD Card Builder"
+### Community 11 - "SD Card Builder"
 Cohesion: 0.11
 Nodes (23): asset(), digest(), generate_credentials(), attach(), chroot_down(), chroot_up(), detach(), build_linux.sh script (+15 more)
 
-### Community 11 - "Pose and Inference"
+### Community 12 - "Pose and Inference"
 Cohesion: 0.12
-Nodes (26): build_dir(), build_rknn(), check(), check_failures(), check_limits(), check_sequences(), compare_onnx_tflite(), compare_pipelines() (+18 more)
-
-### Community 12 - "Conversation and Audio"
-Cohesion: 0.10
-Nodes (9): ResidualEcho, create(), enabled(), extend_config(), fan_filter_hz(), FanFilter, InputEnhancer, mute_during_reply() (+1 more)
+Nodes (24): build_dir(), build_rknn(), check(), check_failures(), check_limits(), check_sequences(), compare_onnx_tflite(), compare_pipelines() (+16 more)
 
 ### Community 13 - "Installation and Updates"
 Cohesion: 0.13
@@ -223,7 +223,7 @@ Nodes (5): AddressGate, follow_up_seconds(), is_speech(), names_ember(), _Watche
 
 ### Community 15 - "Pose and Inference"
 Cohesion: 0.10
-Nodes (11): import_rknnlite(), _rknn_engine(), _by_size(), _finite(), heatmap_hwc(), OnnxEngine, RknnEngine, rknnlite_class() (+3 more)
+Nodes (10): import_rknnlite(), _rknn_engine(), _by_size(), _finite(), heatmap_hwc(), OnnxEngine, RknnEngine, rknnlite_class() (+2 more)
 
 ### Community 16 - "Callable Tools"
 Cohesion: 0.10
@@ -233,203 +233,211 @@ Nodes (9): ensure_model(), EyeContact, FaceLandmarks, looking(), presence_enable
 Cohesion: 0.11
 Nodes (16): latest_frames_only(), _draw_angle_graph(), _draw_annotated(), _draw_fall_alert(), _draw_hud(), _draw_skeleton(), _draw_trunk_line(), _ensure_pose_model() (+8 more)
 
-### Community 18 - "Callable Tools"
-Cohesion: 0.11
-Nodes (14): _clean_query(), _covers_query(), download(), fetch_book(), _ia_search(), _keep_only(), _lucene_terms(), _normalise_title() (+6 more)
-
-### Community 19 - "Runtime and Setup"
+### Community 18 - "Runtime and Setup"
 Cohesion: 0.14
 Nodes (24): AI core and webapp container composition, Experimental Docker deployment, Experimental core/webapp containers, Host boot and optional Wi-Fi hotspot tooling, Synthetic Gemini-in-the-loop evaluation, MediaPipe fall detection setup, Integrated v10 MVP installation, Orange Pi board-specific Debian setup (+16 more)
 
-### Community 20 - "Runtime and Setup"
+### Community 19 - "Runtime and Setup"
 Cohesion: 0.15
 Nodes (18): transcript_overlap(), _append_playback(), receive_audio(), play_reply_audio(), show_reply_text(), _retrieve_memories(), _transcript_add(), consume_stop_request() (+10 more)
 
-### Community 21 - "Pose and Inference"
+### Community 20 - "Pose and Inference"
 Cohesion: 0.15
 Nodes (18): compare(), fall_detector(), _jsonable(), main(), pct(), _print_clip(), _print_summary(), _rate() (+10 more)
 
-### Community 22 - "Runtime and Setup"
+### Community 21 - "Runtime and Setup"
 Cohesion: 0.12
 Nodes (24): Editing and validation protocol, Draft PR and software-lead review before merge/deployment, Preserve user edits, import paths and data flows, Board-specific live and fresh-card validation, Orange Pi scope: Pallas-Robotics/Baymax focused branch, Keep credentials, recordings, models and private images out of Git and graphs, Graphify AST extraction plus reviewed semantic document snapshot, Graphify feature map guide (+16 more)
 
-### Community 23 - "Callable Tools"
-Cohesion: 0.13
-Nodes (8): CheckIns, enabled(), _last_conversation(), _last_heard(), _path(), _setting(), window(), windows()
+### Community 22 - "Runtime and Setup"
+Cohesion: 0.15
+Nodes (22): Competent-speaker review of every turn, Full candidate matrix and explicit valid_audio_languages output, Switch from native language to English, Human review bound to exact model/config/input/transcript/audio hashes, Multilingual evaluation and validated-language guide, Mixed Hindi-English scripted scenario, Follow-up in the same language, Scripted native-language question (+14 more)
 
-### Community 24 - "Pose and Inference"
-Cohesion: 0.12
-Nodes (9): cpu_factory(), default_mediapipe_options(), MediaPipeCpuBackend, frames_from(), main(), run(), summary(), Timed (+1 more)
-
-### Community 27 - "Callable Tools"
+### Community 25 - "Callable Tools"
 Cohesion: 0.14
-Nodes (11): enabled(), extend_config(), silent(), enabled(), extend_config(), handle_tool_call(), prewarm(), warm() (+3 more)
+Nodes (13): execute(), execute(), enabled(), execute(), extend_config(), handle_tool_call(), prewarm(), warm() (+5 more)
 
-### Community 28 - "Runtime and Setup"
+### Community 26 - "Runtime and Setup"
 Cohesion: 0.10
 Nodes (12): _abandon_reply(), _abort_connection(), fall_alert_monitor(), _flush_playback(), get_default_device_id(), listen_audio(), monitor_queues(), pin_pipewire_sink() (+4 more)
 
-### Community 29 - "Runtime and Setup"
+### Community 27 - "Runtime and Setup"
 Cohesion: 0.15
 Nodes (21): Every feature PR records off/on/combined performance evidence, Feature active/on comparison, Explicit added-p95 speech-end-to-playback budget, Aggregate JSON performance reports under .local-review, Baseline/off with the same conversation workload, Separate explicit-PID cold-start collection, Normal combined-feature workload, Matched board, build, devices, model, network, duration and utterances (+13 more)
 
-### Community 30 - "Runtime and Setup"
+### Community 28 - "Runtime and Setup"
 Cohesion: 0.19
 Nodes (5): log(), main(), read_env(), _requirements(), Updater
 
-### Community 31 - "Runtime and Setup"
+### Community 29 - "Runtime and Setup"
 Cohesion: 0.18
 Nodes (10): test_device(), camera_devices(), check_camera_permission(), _framework(), resolve_camera(), camera_candidates(), configure_audio_backend(), npu_drivers() (+2 more)
 
-### Community 32 - "Pose and Inference"
+### Community 30 - "Pose and Inference"
+Cohesion: 0.13
+Nodes (7): default_mediapipe_options(), MediaPipeCpuBackend, frames_from(), main(), run(), summary(), Timed
+
+### Community 31 - "Runtime and Setup"
 Cohesion: 0.15
-Nodes (9): associate(), decode_detections(), Detection, detector_roi(), _iou(), _rect_iou(), remove_letterbox(), warp() (+1 more)
+Nodes (5): FallDetector, main(), open_camera(), say(), _detector_factory()
 
-### Community 33 - "Callable Tools"
-Cohesion: 0.12
-Nodes (11): execute(), execute(), enabled(), execute(), find_stations(), _miniaudio_source(), open_stream(), playable() (+3 more)
-
-### Community 35 - "Runtime and Setup"
+### Community 33 - "Runtime and Setup"
 Cohesion: 0.11
 Nodes (10): _format_transcript(), _generate_summary(), _keep_transcript_unsaved(), _mark_transcript_saved(), _memory_save_due(), _memory_saver_thread(), _memory_store(), _save_memories_on_stop() (+2 more)
 
-### Community 36 - "Runtime and Setup"
+### Community 34 - "Runtime and Setup"
 Cohesion: 0.17
 Nodes (8): _draw_angle_graph(), _draw_fall_alert(), _draw_hud(), _draw_skeleton(), _draw_trunk_line(), _ensure_model(), run(), _text()
 
-### Community 37 - "Callable Tools"
-Cohesion: 0.12
-Nodes (7): attach(), _boost(), execute(), hold_for_answer(), register(), session_task(), _volume()
-
-### Community 38 - "Runtime and Setup"
+### Community 35 - "Runtime and Setup"
 Cohesion: 0.18
 Nodes (6): audio_catalog(), camera_catalog(), Handler, LocalServer, main(), open_camera()
 
-### Community 39 - "Conversation and Audio"
+### Community 36 - "Conversation and Audio"
 Cohesion: 0.17
 Nodes (6): enabled(), execute(), extend_config(), _level(), _path(), VoiceVolume
 
-### Community 40 - "Callable Tools"
+### Community 37 - "Callable Tools"
 Cohesion: 0.18
 Nodes (3): enabled(), FallWorker, _record()
 
-### Community 42 - "Installation and Updates"
+### Community 39 - "Physical Eyes"
+Cohesion: 0.16
+Nodes (7): clear_failures(), expected_sensors(), eyes_session(), sensors(), failure_face(), lost_sensor(), _mic_reports()
+
+### Community 40 - "Installation and Updates"
 Cohesion: 0.18
 Nodes (8): _device_setting(), home(), page_not_found(), profile_exists(), setup(), status(), switch_network(), uplink_iface()
 
-### Community 43 - "Runtime and Setup"
+### Community 41 - "Physical Eyes"
+Cohesion: 0.28
+Nodes (5): LedControl, crashed(), main(), settings(), show()
+
+### Community 42 - "Pose and Inference"
+Cohesion: 0.13
+Nodes (4): _Backend, FallbackBackend, PipelineBackend, port()
+
+### Community 43 - "Callable Tools"
+Cohesion: 0.15
+Nodes (6): attach(), _boost(), hold_for_answer(), register(), session_task(), _volume()
+
+### Community 44 - "Runtime and Setup"
 Cohesion: 0.25
 Nodes (6): configured_models(), PreflightError, validate_key(), main(), CredentialError, gemini_key()
 
-### Community 44 - "Runtime and Setup"
+### Community 45 - "Runtime and Setup"
 Cohesion: 0.31
 Nodes (12): cpu_ticks(), main(), monitor(), process_tree(), read(), report(), sample(), sensors() (+4 more)
 
-### Community 45 - "Family Connections"
-Cohesion: 0.21
-Nodes (7): deliver_messages(), enabled(), profile_section(), refresh_profile(), register(), session_task(), start()
-
 ### Community 46 - "Callable Tools"
+Cohesion: 0.21
+Nodes (8): _listener(), cpu_factory(), download_model(), heard(), model_path(), _pair(), _vosk_model(), _vosk_recognizer()
+
+### Community 47 - "Physical Eyes"
+Cohesion: 0.23
+Nodes (6): attach(), AutoEyes, cue(), medical_alert(), reply_cue(), requested()
+
+### Community 48 - "Callable Tools"
+Cohesion: 0.18
+Nodes (5): _last_conversation(), _last_heard(), _path(), window(), windows()
+
+### Community 49 - "Callable Tools"
 Cohesion: 0.23
 Nodes (4): coordinates(), fetch_json(), Location, Weather
 
-### Community 47 - "Runtime and Setup"
+### Community 51 - "Runtime and Setup"
 Cohesion: 0.26
 Nodes (9): use_performance_cpus(), configuration_ready(), configure_once(), main(), pid_alive(), runtime_lock(), runtime_running(), _stop() (+1 more)
 
-### Community 48 - "Runtime and Setup"
+### Community 52 - "Runtime and Setup"
 Cohesion: 0.17
 Nodes (6): _download_memory_model(), _load_memory_embedder(), _memory_model_to_download(), download_model(), missing_packages(), model_present()
 
-### Community 49 - "Runtime and Setup"
+### Community 53 - "Runtime and Setup"
 Cohesion: 0.27
 Nodes (7): public_configuration(), read_configuration(), save_configuration(), audio_device(), camera_device(), identity(), main()
 
-### Community 51 - "Runtime and Setup"
+### Community 55 - "Family Connections"
+Cohesion: 0.23
+Nodes (6): deliver_messages(), enabled(), profile_section(), refresh_profile(), register(), session_task()
+
+### Community 56 - "Everyday Support"
+Cohesion: 0.27
+Nodes (8): available_to_speak(), enabled(), execute(), notify_due(), _playback_active(), register(), session_task(), start()
+
+### Community 57 - "Runtime and Setup"
 Cohesion: 0.23
 Nodes (3): remote_pose(), remote_face(), Remote
 
-### Community 54 - "Runtime and Setup"
+### Community 60 - "Runtime and Setup"
 Cohesion: 0.18
 Nodes (6): _build_config(), _fire_initiation(), _initiation_memory_hint(), initiation_monitor(), _newest_memories(), _safe_to_initiate()
 
-### Community 55 - "Runtime and Setup"
+### Community 61 - "Runtime and Setup"
 Cohesion: 0.36
 Nodes (9): ensure_environment(), environment_python(), fingerprint(), install_shortcuts(), installation_lock(), main(), requirements_file(), run_checked() (+1 more)
 
-### Community 56 - "SD Card Builder"
+### Community 62 - "SD Card Builder"
 Cohesion: 0.24
 Nodes (6): anydesk_id(), command(), duration(), Handler, progress(), status()
 
-### Community 57 - "Callable Tools"
-Cohesion: 0.24
-Nodes (3): execute(), Listen, record()
-
-### Community 58 - "Conversation and Audio"
+### Community 63 - "Conversation and Audio"
 Cohesion: 0.22
 Nodes (5): connection_lost(), extend_config(), on_server_message(), remember(), _tokens()
 
-### Community 60 - "Everyday Support"
-Cohesion: 0.31
-Nodes (7): available_to_speak(), enabled(), execute(), notify_due(), _playback_active(), register(), session_task()
-
-### Community 61 - "Installation and Updates"
+### Community 65 - "Installation and Updates"
 Cohesion: 0.38
 Nodes (9): cfg(), pactl_user(), run_gemini_with_retry(), set_audio_levels(), startup.sh script, start_containers(), start_portal_supervised(), start_robot() (+1 more)
 
-### Community 65 - "Runtime and Setup"
+### Community 66 - "Callable Tools"
+Cohesion: 0.33
+Nodes (3): CheckIns, enabled(), _setting()
+
+### Community 67 - "Runtime and Setup"
 Cohesion: 0.33
 Nodes (6): collect_suites(), local_settings_ignored(), __init__(), main(), render_report(), run_sections()
 
-### Community 68 - "Pose and Inference"
-Cohesion: 0.25
-Nodes (4): decode_landmarks(), project(), refine_from_heatmap(), _sigmoid()
-
-### Community 69 - "Runtime and Setup"
+### Community 71 - "Runtime and Setup"
 Cohesion: 0.25
 Nodes (4): arm_linux(), performance_cpus(), main(), runtime_script()
 
-### Community 70 - "Runtime and Setup"
+### Community 72 - "Runtime and Setup"
 Cohesion: 0.22
 Nodes (3): _boot_status(), _notify_webapp(), _TurnTranscript
 
-### Community 71 - "Runtime and Setup"
+### Community 73 - "Runtime and Setup"
 Cohesion: 0.36
 Nodes (7): feature_html(), flush(), flush_paragraph(), inline(), main(), portable_diagnostic(), source_group()
 
-### Community 72 - "Installation and Updates"
+### Community 74 - "Installation and Updates"
 Cohesion: 0.50
 Nodes (7): cfg(), compose(), healthy(), image_id(), log(), ember-update.sh script, wait_healthy()
 
-### Community 75 - "Runtime and Setup"
-Cohesion: 0.38
-Nodes (3): main(), open_camera(), say()
-
-### Community 77 - "Pose and Inference"
+### Community 75 - "Physical Eyes"
 Cohesion: 0.29
-Nodes (3): alignment_rect(), normalize_radians(), Rect
+Nodes (4): enabled(), execute(), extend_config(), silent()
 
-### Community 78 - "Installation and Updates"
+### Community 79 - "Installation and Updates"
 Cohesion: 0.53
 Nodes (4): closure(), imported_top_level_modules(), main(), root_distributions()
 
-### Community 79 - "Installation and Updates"
+### Community 80 - "Installation and Updates"
 Cohesion: 0.60
 Nodes (5): cfg(), die(), run(), provision.sh script, step()
 
-### Community 82 - "Runtime and Setup"
+### Community 83 - "Runtime and Setup"
 Cohesion: 0.53
 Nodes (4): desktop_quote(), install(), main(), systemd_quote()
 
-### Community 83 - "Runtime and Setup"
+### Community 84 - "Runtime and Setup"
 Cohesion: 0.53
 Nodes (4): display_connected(), main(), open_monitor(), serve()
 
-### Community 84 - "SD Card Builder"
+### Community 85 - "SD Card Builder"
 Cohesion: 0.60
 Nodes (4): load(), main(), save(), validate()
 
-### Community 86 - "Installation and Updates"
+### Community 87 - "Installation and Updates"
 Cohesion: 0.60
 Nodes (3): die(), make_usb.sh script, step()
 
@@ -450,48 +458,48 @@ Cohesion: 0.50
 Nodes (4): macOS simulation and hardware verification, Simulated macOS device contract tests, Intel macOS dependency profile, Windows pinned dependency profile
 
 ## Knowledge Gaps
-- **60 isolated node(s):** `Development and review protocol`, `Desktop setup and device selection`, `Intel macOS dependency profile`, `Shared Orange Pi ARM64 dependency profile`, `Desktop dependency profile` (+55 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 656 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **57 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **67 isolated node(s):** `Development and review protocol`, `Desktop setup and device selection`, `Intel macOS dependency profile`, `Shared Orange Pi ARM64 dependency profile`, `Desktop dependency profile` (+62 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 666 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **56 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `ChildPose` connect `Pose and Inference` to `Pose and Inference`, `Runtime and Setup`?**
-  _High betweenness centrality (0.125) - this node is a cross-community bridge._
+- **Why does `ChildPose` connect `Pose and Inference` to `Runtime and Setup`?**
+  _High betweenness centrality (0.122) - this node is a cross-community bridge._
 - **What connects `Development and review protocol`, `Desktop setup and device selection`, `Intel macOS dependency profile` to the rest of the system?**
-  _60 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _67 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Callable Tools` be split into smaller, more focused modules?**
   _Cohesion score 0.052184769038701624 - nodes in this community are weakly interconnected._
-- **Why does `PosePipeline` connect `Pose and Inference` to `Pose and Inference`, `Pose and Inference`, `Pose and Inference`, `Pose and Inference`, `Pose and Inference`?**
-  _High betweenness centrality (0.067) - this node is a cross-community bridge._
-- **Should `Physical Eyes` be split into smaller, more focused modules?**
-  _Cohesion score 0.050203527815468114 - nodes in this community are weakly interconnected._
+- **Why does `PosePipeline` connect `Pose and Inference` to `Pose and Inference`, `Pose and Inference`, `Pose and Inference`?**
+  _High betweenness centrality (0.056) - this node is a cross-community bridge._
+- **Should `Pose and Inference` be split into smaller, more focused modules?**
+  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
 - **Why does `VoiceAnalyzer` connect `Runtime and Setup` to `Runtime and Setup`, `Runtime and Setup`?**
-  _High betweenness centrality (0.050) - this node is a cross-community bridge._
-- **Should `Everyday Support` be split into smaller, more focused modules?**
-  _Cohesion score 0.07080200501253132 - nodes in this community are weakly interconnected._
+  _High betweenness centrality (0.046) - this node is a cross-community bridge._
+- **Should `Runtime and Setup` be split into smaller, more focused modules?**
+  _Cohesion score 0.059322033898305086 - nodes in this community are weakly interconnected._
 ## Scope and integrity
 
-The graph is documentation, not a hardware certification. Local paths are repository-relative. 897 unresolved/external references (including standard-library imports) are omitted from this project-only view and retained in `UNRESOLVED_REFERENCES.json`; these are not claimed to be missing runtime dependencies. Parallel relationships can collapse in the native undirected view; raw semantic evidence remains in `docs/features/semantic_graph.json`.
+The graph is documentation, not a hardware certification. Local paths are repository-relative. 919 unresolved/external references (including standard-library imports) are omitted from this project-only view and retained in `UNRESOLVED_REFERENCES.json`; these are not claimed to be missing runtime dependencies. Parallel relationships can collapse in the native undirected view; raw semantic evidence remains in `docs/features/semantic_graph.json`.
 
 Project-view health:
 
 ```json
 {
-  "node_count": 1877,
+  "node_count": 1913,
   "unverified_node_count": 0,
-  "raw_edge_count": 3275,
+  "raw_edge_count": 3339,
   "non_object_edges": 0,
   "missing_endpoint_edges": 0,
   "dangling_endpoint_edges": 0,
   "external_reference_edges": 0,
   "self_loop_edges": 4,
-  "valid_candidate_edges": 3275,
+  "valid_candidate_edges": 3339,
   "exact_duplicate_edges": 0,
-  "directed_unique_endpoint_pairs": 3207,
+  "directed_unique_endpoint_pairs": 3271,
   "directed_same_endpoint_collapsed_edges": 68,
-  "undirected_unique_endpoint_pairs": 3201,
+  "undirected_unique_endpoint_pairs": 3265,
   "undirected_same_endpoint_collapsed_edges": 74,
   "same_endpoint_group_count": 67,
   "relation_variant_groups": 66,
@@ -499,8 +507,8 @@ Project-view health:
   "source_location_variant_groups": 2,
   "context_variant_groups": 0,
   "post_build_graph_type": "Graph",
-  "post_build_node_count": 1876,
-  "post_build_edge_count": 3200,
+  "post_build_node_count": 1912,
+  "post_build_edge_count": 3264,
   "post_build_error": "",
   "producer_suppression": {
     "path": "external-package/extract.py",
@@ -690,19 +698,19 @@ Raw extraction health before scope filtering:
 
 ```json
 {
-  "node_count": 1877,
+  "node_count": 1913,
   "unverified_node_count": 0,
-  "raw_edge_count": 4172,
+  "raw_edge_count": 4258,
   "non_object_edges": 0,
   "missing_endpoint_edges": 0,
-  "dangling_endpoint_edges": 897,
+  "dangling_endpoint_edges": 919,
   "external_reference_edges": 0,
   "self_loop_edges": 4,
-  "valid_candidate_edges": 3275,
+  "valid_candidate_edges": 3339,
   "exact_duplicate_edges": 0,
-  "directed_unique_endpoint_pairs": 3207,
+  "directed_unique_endpoint_pairs": 3271,
   "directed_same_endpoint_collapsed_edges": 68,
-  "undirected_unique_endpoint_pairs": 3201,
+  "undirected_unique_endpoint_pairs": 3265,
   "undirected_same_endpoint_collapsed_edges": 74,
   "same_endpoint_group_count": 67,
   "relation_variant_groups": 66,
@@ -710,8 +718,8 @@ Raw extraction health before scope filtering:
   "source_location_variant_groups": 2,
   "context_variant_groups": 0,
   "post_build_graph_type": "Graph",
-  "post_build_node_count": 1959,
-  "post_build_edge_count": 4096,
+  "post_build_node_count": 1995,
+  "post_build_edge_count": 4182,
   "post_build_error": "",
   "producer_suppression": {
     "path": "external-package/extract.py",
