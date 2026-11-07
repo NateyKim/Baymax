@@ -64,7 +64,7 @@ Baymax PR #11 stacked on PR #7 for Windows, Intel/Apple Silicon macOS, Linux/Ora
 - Optional fall detection uses the existing camera (in v10 it reuses the core's pose instead of running a second model), is disabled by default and adds no caregiver alerts. It runs on the CPU unless the optional Orange Pi 5 NPU pose setup has been done (`Baymax-main/features/pose`).
 - Public information tools and explicit local headline/feed profiles are opt-in, with Setup controls and documented sources, data flows and tests. Desktop v8 and robot v10 retain existing handlers and tool-response IDs.
 
-Extract the whole branch and open `devops/clickables` → your OS → **1 - Setup**. Then Save key/devices and use **Monitor → Start Ember → Stop Ember**. On Intel macOS, Setup selects the Intel profile inherited from #7 automatically. Actual Intel/Apple Silicon Mac and ARM installations/devices remain pending.
+Extract the whole branch and open `devops/clickables` â†’ your OS â†’ **1 - Setup**. Then Save key/devices and use **Monitor â†’ Start Ember â†’ Stop Ember**. On Intel macOS, Setup selects the Intel profile inherited from #7 automatically. Actual Intel/Apple Silicon Mac and ARM installations/devices remain pending.
 
 - [Feature layout](Baymax-main/features/README.md)
 - [Toolkit guide](Baymax-main/features/toolkits/README.md)
@@ -74,3 +74,15 @@ Extract the whole branch and open `devops/clickables` → your OS → **1 - Setu
 - [Testing protocol](Baymax-main/TESTING_PROTOCOL.md)
 
 Run `python check_release.py` from `Baymax-main` for separate core/toolkit offline results. Pull requests and pushes to `release` run it on GitHub (`.github/workflows/offline-checks.yml`), including a Linux ARM64 job with `requirements-orange-pi.txt` (GitHub's runner, not an Orange Pi). `Baymax-main/evals/live_eval.py` plays scripted turns into real Gemini sessions from a PC, without a robot ([evals](Baymax-main/evals/README.md); needs a key, not yet run on this repository). Offline success does not establish real-device, live Gemini or provider accuracy, or authorize deployment. The toolkit work changed no production startup/service. Deliberately starting the runtime sends microphone/camera data to Gemini and records audio locally; toolkit documentation describes additional provider calls.
+
+## Publishing authority and update channels
+
+`NateyKim/Baymax` is the authoritative Ember publishing repository.
+See [update channel policy](docs/UPDATE_CHANNELS.md) for owner-selected channels,
+CI checks and compatibility with existing installations.
+
+## Publishing authority and update channels
+
+`NateyKim/Baymax` is the authoritative Ember publishing repository.
+See [update channel policy](docs/UPDATE_CHANNELS.md) for owner-selected channels,
+CI checks and compatibility with existing installations.

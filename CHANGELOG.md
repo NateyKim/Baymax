@@ -1,5 +1,11 @@
 # MVP (unreleased)
 
+- Establish NateyKim/Baymax as the Ember publishing authority. Add deploy,
+  needshardwaretest, needssimtest and needssoftwaretest channel branches, with
+  offline checks and image build checks on every channel push. Channel image
+  checks do not publish or promote container tags. New SD-image configuration
+  defaults to this repository and deploy; existing owner settings remain intact.
+
 - **Ember for Orange Pi: one repository for the Orange Pi 4 Pro and the Orange Pi 5
   Max.** Made from JoeKojima/Baymax PR #29 (`opi4-demo`), PR #22 (`codex/opi4-flash`),
   the Orange Pi 5 Max branches `orangepi5-npu` + `memory-incremental-saves`,
