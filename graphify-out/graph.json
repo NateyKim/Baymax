@@ -55834,7 +55834,7 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "e216caef0fa51e81b062fd6d5c3d8734566388b2",
+  "built_at_commit": "af98b47de26a48d07607d10ca592fa0be75a4977",
   "protocol_entrypoints": [
     {
       "id": "docs_working_protocol",

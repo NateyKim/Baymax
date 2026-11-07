@@ -2,6 +2,8 @@
 
 **Start here:** [working protocol](docs/WORKING_PROTOCOL.md) · [contributing](CONTRIBUTING.md) · [testing](Baymax-main/TESTING_PROTOCOL.md) · [Graphify map](graphify-out/START_HERE.md).
 
+**Current review work:** [draft PR #1](https://github.com/NateyKim/Baymax/pull/1) contains the owner-opt-in experiments and working-protocol changes. It is for bench review; ordinary devices should stay on an approved `deploy` revision until review and promotion are complete.
+
 **Published authority:** NateyKim/Baymax. Runtime owners use an approved `deploy`
 revision. Contributors branch from this fork's `main`, push a feature branch here
 and open a draft PR targeting `main`; a review PR is not a deployment version.

@@ -3,6 +3,8 @@
 Repository authority: NateyKim/Baymax. `deploy` is the approved baseline; feature
 PRs target `main`. See [working protocol](WORKING_PROTOCOL.md).
 
+Review: [draft PR #1](https://github.com/NateyKim/Baymax/pull/1), targeting this fork’s main.
+
 ## Prepared in this draft
 
 - [x] Document the authority chain, branch/PR route, stable-feature priority and
