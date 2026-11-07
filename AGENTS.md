@@ -1,5 +1,11 @@
 # Ember development instructions
 
+## Mandatory working protocol
+
+- Before repository analysis or edits, run `python devops/graphify/query.py "<actual question>"` and read its protocol/source output. Then follow `docs/WORKING_PROTOCOL.md`, `CONTRIBUTING.md` and `Baymax-main/TESTING_PROTOCOL.md`. Report unavailable tooling rather than claiming it was used.
+- NateyKim/Baymax is the publishing authority; branch from its main and submit a draft PR back to main. Preserve deploy behavior. Never promote, force-push channels, switch owners, or certify hardware from software tests. The software lead approves releases.
+- Keep Graphify protocol sources and their generated map current; CI runs `python devops/graphify/check.py`. Documentation requirements apply to human and LLM contributions.
+
 - Follow `docs/UPDATE_CHANNELS.md` and `Baymax-main/features/experimental/README.md`. Experiments are off unless the owner opts in per feature. Language adaptation and offline fall check-ins remain `tested_in_software` until chamber video/audio replay evidence exists; injected data on a Pi alone is software testing. Preserve sim/hardware evidence and lead release review.
 
 - The documented desktop entry point is `Baymax-main/run_pc.py`, using Gemini Live version 8. Confirm the actual hardware entry point before claiming deployed parity; version 9 has additional behavior.

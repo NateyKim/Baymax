@@ -1,5 +1,11 @@
 # MVP (unreleased)
 
+- Document the authoritative contribution/release route and five owner modes.
+  Require protocol-first Graphify queries for LLM work and a source-freshness CI
+  gate. Add the public source map, PR template and rollout checklist; physical
+  evidence and release approval remain separate. Correct platform-specific test
+  assumptions and wait for asynchronous viewer cleanup in the CI regression test.
+
 - Establish NateyKim/Baymax as the Ember publishing authority. Add deploy,
   needshardwaretest, needssimtest and needssoftwaretest channel branches, with
   offline checks and image build checks on every channel push. Channel image

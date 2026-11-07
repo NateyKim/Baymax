@@ -639,15 +639,19 @@ class LiveViewTests(unittest.TestCase):
         first = parts(2)
         self.assertEqual(len(drawn), 1)
         self.assertEqual(first[0], first[1])                     # re-sent, not re-drawn or re-encoded
-        time.sleep(0.3)
-        self.assertEqual(ns["_mjpeg_viewers"], 0)               # the viewer left
+        deadline = time.monotonic() + 5
+        while ns["_mjpeg_viewers"] and time.monotonic() < deadline:
+            time.sleep(0.02)
+        self.assertEqual(ns["_mjpeg_viewers"], 0)               # TCP close is asynchronous.
         # A new picture each frame while watched: the stream follows it.
         show(30)
         seen = parts(8, {3: lambda: show(200)})
         means = [int(cv2.imdecode(np.frombuffer(b, np.uint8), cv2.IMREAD_COLOR).mean()) for b in seen]
         self.assertLessEqual(abs(means[0] - 30), 2)
         self.assertLessEqual(abs(means[-1] - 200), 2)
-        time.sleep(0.3)
+        deadline = time.monotonic() + 5
+        while ns["_mjpeg_viewers"] and time.monotonic() < deadline:
+            time.sleep(0.02)
         self.assertEqual(ns["_mjpeg_viewers"], 0)
 
 
@@ -811,7 +815,12 @@ class PoseModelDownloadTests(unittest.TestCase):
         (root / "release").mkdir()
         self.shared = root / "shared" / "pose_landmarker_lite.task"
         self.path = root / "release" / "pose_landmarker_lite.task"
-        self.path.symlink_to(self.shared)                  # dangling until the first download
+        try:
+            self.path.symlink_to(self.shared)              # dangling until the first download
+        except OSError as error:
+            if os.name == 'nt' and getattr(error, 'winerror', None) == 1314:
+                self.skipTest('Windows account lacks symbolic-link privilege')
+            raise
 
     def ensure(self, retrieve):
         ns = {"os": os, "urllib": SimpleNamespace(request=SimpleNamespace(urlretrieve=retrieve)),

@@ -7,7 +7,7 @@ name: Robot image
 
 on:
   push:
-    branches: [main, deploy, needshardwaretest, needssimtest, needssoftwaretest]
+    branches: [main, deploy, needshardwaretest, needssimtest, needssoftwaretest, experimental]
   pull_request:
   workflow_dispatch:
 
