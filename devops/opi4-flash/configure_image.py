@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
-from image_settings import DEFAULT_TIMEZONE, REPOSITORY, load, timezone, valid_timezone, validate
+from image_settings import DEFAULT_TIMEZONE, REPOSITORY, load, timezone, valid_timezone, validate, wifi_networks
 
 
 def save_private(path, settings):
@@ -37,16 +37,18 @@ def main():
         print(f'These settings followed pull request #{old["pr"]}; images now follow a branch of {REPOSITORY}.')
     current = old.get('branch', 'deploy')
     branch = input(f'Branch to follow [{current}]: ').strip() or current
-    ssid = input(f'Wi-Fi name [{old["wifi"]["ssid"]}]: ').strip() or old['wifi']['ssid']
+    primary_wifi = wifi_networks(old)[0]
+    ssid = input(f'Wi-Fi name [{primary_wifi["ssid"]}]: ').strip() or primary_wifi['ssid']
     password = getpass.getpass('Wi-Fi password (Enter keeps existing; - means open Wi-Fi): ')
-    password = '' if password == '-' else password or (old['wifi']['password'] if ssid == old['wifi']['ssid'] else '')
+    password = '' if password == '-' else password or (primary_wifi['password'] if ssid == primary_wifi['ssid'] else '')
     key = getpass.getpass('Gemini key (Enter keeps existing; - leaves manual Setup): ')
     key = '' if key == '-' else key or old['gemini_api_key']
     zone = input(f'Time zone, e.g. America/New_York [{timezone(old)}]: ').strip() or timezone(old)
     while not valid_timezone(zone):
         zone = input(f'Not a time zone name. Time zone [{DEFAULT_TIMEZONE}]: ').strip() or DEFAULT_TIMEZONE
-    kept = {'access_password': old['access_password']} if 'access_password' in old else {}
-    save_private(args.settings, {'branch': branch, 'wifi': {'ssid': ssid, 'password': password},
+    kept = {name: old[name] for name in ('access_password', 'linux_password', 'anydesk_password') if name in old}
+    networks = [{'ssid': ssid, 'password': password}] + wifi_networks(old)[1:]
+    save_private(args.settings, {'branch': branch, 'wifi_networks': networks,
                                  'gemini_api_key': key, 'timezone': zone} | kept)
     print(f'Saved branch {branch!r}, Wi-Fi {ssid!r}, Gemini key {"configured" if key else "blank"} '
           f'and time zone {zone}. Rebuild the image to apply.')

@@ -95,6 +95,40 @@ class ImageSettingsTests(unittest.TestCase):
         self.assertIn('key_mgmt=NONE', text)
         self.assertNotIn('psk=', text)
 
+    def test_multiple_wifi_networks_include_open_and_secure_first_boot_slots(self):
+        networks = [{'ssid': 'natey', 'password': 'hotspot123'},
+                    {'ssid': 'Coffee', 'password': ''},
+                    {'ssid': 'Home', 'password': 'apartment123'}]
+        settings = {'branch': 'deploy', 'wifi_networks': networks, 'gemini_api_key': ''}
+        self.assertEqual(validate(settings), settings)
+        text = supplicant(networks)
+        self.assertEqual(text.count('network={'), 3)
+        self.assertIn('priority=100', text)
+        self.assertIn('priority=98', text)
+        self.assertIn('key_mgmt=NONE', text)
+        boot = dietpi_wifi("aWIFI_SSID[0]=''\naWIFI_KEY[0]=''\n", networks)
+        self.assertIn('aWIFI_SSID[1]=Coffee', boot)
+        self.assertIn('aWIFI_KEYMGR[1]=NONE', boot)
+        self.assertIn('aWIFI_SSID[2]=Home', boot)
+        self.assertIn('aWIFI_KEYMGR[2]=WPA-PSK', boot)
+        cleared = dietpi_wifi("aWIFI_SSID[0]=''\naWIFI_KEY[0]=''\naWIFI_SSID[1]=Old\naWIFI_KEY[1]=old-secret\n",
+                              networks[:1])
+        self.assertIn("aWIFI_SSID[1]=''", cleared)
+        self.assertIn("aWIFI_KEY[1]=''", cleared)
+        with self.assertRaises(ValueError):
+            validate(settings | {'wifi_networks': networks * 2})
+        with self.assertRaises(ValueError):
+            validate(settings | {'wifi_networks': networks + [networks[0]]})
+
+    def test_separate_access_passwords_are_validated(self):
+        settings = self.settings | {'linux_password': 'ssh-secret-123',
+                                    'anydesk_password': 'desk-secret-456'}
+        self.assertEqual(validate(settings), settings)
+        with self.assertRaises(ValueError):
+            validate(settings | {'access_password': 'shared-secret'})
+        with self.assertRaises(ValueError):
+            validate(self.settings | {'anydesk_password': 'short'})
+
     def test_shell_metacharacters_are_quoted_and_missing_fields_rejected(self):
         text = dietpi_wifi("aWIFI_SSID[0]=''\naWIFI_KEY[0]=''\n", {'ssid': "O'Brien $(echo test)", 'password': 'pass$word'})
         self.assertIn("'\"'\"'", text)

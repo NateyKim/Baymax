@@ -22,6 +22,15 @@ class BuildTests(unittest.TestCase):
         fixed = builder.generate_credentials('longenough')
         self.assertEqual((fixed['linux_password'], fixed['anydesk_password']), ('longenough', 'longenough'))
 
+    def test_separate_passwords_override_generation_independently(self):
+        fixed = builder.generate_credentials(linux_password='ssh-secret-123',
+                                             anydesk_password='desk-secret-456')
+        self.assertEqual(fixed['linux_password'], 'ssh-secret-123')
+        self.assertEqual(fixed['anydesk_password'], 'desk-secret-456')
+        partial = builder.generate_credentials(anydesk_password='desk-secret-456')
+        self.assertEqual(partial['anydesk_password'], 'desk-secret-456')
+        self.assertNotEqual(partial['linux_password'], partial['anydesk_password'])
+
     def test_bad_download_never_replaces_cached_asset(self):
         with tempfile.TemporaryDirectory() as directory:
             cache = Path(directory)

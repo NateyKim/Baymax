@@ -7,7 +7,7 @@ import subprocess
 import sys
 import re
 import tarfile
-from image_settings import load, source, supplicant, dietpi_wifi, timezone
+from image_settings import load, source, supplicant, dietpi_wifi, timezone, wifi_networks
 
 root = Path(sys.argv[1]).resolve()
 payload = Path(sys.argv[2]).resolve()
@@ -101,7 +101,7 @@ if (root / 'boot/dietpi.txt').is_file():
         assert count == 1, key
     write('/boot/dietpi.txt', dietpi, 0o600)
     wifi = (root / 'boot/dietpi-wifi.txt').read_text()
-    wifi = dietpi_wifi(wifi, settings['wifi'])
+    wifi = dietpi_wifi(wifi, wifi_networks(settings))
     write('/boot/dietpi-wifi.txt', wifi, 0o600)
     # Persistent logs survive removal of the card after an unsuccessful boot.
     fstab = (root / 'etc/fstab').read_text()
@@ -117,7 +117,7 @@ dbus_id = root / 'var/lib/dbus/machine-id'
 dbus_id.unlink(missing_ok=True)
 image_directory(dbus_id.parent)
 dbus_id.symlink_to('/etc/machine-id')
-write('/etc/wpa_supplicant/wpa_supplicant.conf', supplicant(settings['wifi']), 0o600)
+write('/etc/wpa_supplicant/wpa_supplicant.conf', supplicant(wifi_networks(settings)), 0o600)
 write('/etc/network/interfaces.d/wlan0.conf', 'allow-hotplug wlan0\niface wlan0 inet dhcp\nwpa-conf /etc/wpa_supplicant/wpa_supplicant.conf\n')
 interfaces = (root / 'etc/network/interfaces').read_text()
 if not re.search(r'^source(?:-directory)?\s+/etc/network/interfaces.d', interfaces, re.M):
