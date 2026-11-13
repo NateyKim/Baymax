@@ -45,7 +45,8 @@ def run(argv, log, *, cwd=None):
 def instance_state(multipass):
     result = subprocess.run([multipass, 'list', '--format', 'json'], capture_output=True,
                             text=True, check=True)
-    info = json.loads(result.stdout).get('info', [])
+    listing = json.loads(result.stdout)
+    info = listing.get('list', listing.get('info', []))
     if isinstance(info, dict):
         info = [dict(name=name, **details) for name, details in info.items()]
     return next((item.get('state', '') for item in info if item.get('name') == VM), None)

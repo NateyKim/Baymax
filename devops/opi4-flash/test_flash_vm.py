@@ -1,6 +1,7 @@
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -11,6 +12,12 @@ import package_app
 
 
 class FlashVmTests(unittest.TestCase):
+    def test_existing_multipass_vm_is_reused(self):
+        listing = {'list': [{'name': 'ember-opi4-builder', 'state': 'Running'}]}
+        with patch.object(flash_vm.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                [], 0, json.dumps(listing), '')):
+            self.assertEqual(flash_vm.instance_state('multipass'), 'Running')
+
     def test_archive_never_includes_private_settings_or_old_images(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
