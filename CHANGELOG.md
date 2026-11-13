@@ -1,5 +1,9 @@
 # MVP (unreleased)
 
+- Orange Pi 4 Pro images now select HDMI when connected and a virtual display
+  otherwise, so AnyDesk remains usable after monitor changes. Tested on
+  ember-001 with HDMI and after unplugging; new-image validation remains pending.
+
 - Establish NateyKim/Baymax as the Ember publishing authority. Add deploy,
   needshardwaretest, needssimtest and needssoftwaretest channel branches, with
   offline checks and image build checks on every channel push. Channel image

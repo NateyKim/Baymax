@@ -36,7 +36,13 @@ assert (root / 'etc/hostname').read_text().strip() == credentials['hostname']
 assert not (root / 'home/ember/.env').exists()
 assert (root / 'opt/ember-python/python/bin/python3.12').exists()
 assert (root / 'opt/ember-python/python/bin/python3.12').stat().st_uid == 0
-assert 'Driver "dummy"' in (root / 'etc/X11/xorg.conf.d/20-ember-virtual.conf').read_text()
+assert 'Driver "dummy"' in (root / 'etc/X11/ember-virtual.conf').read_text()
+assert (root / 'etc/X11/xorg.conf.d/20-ember-virtual.conf').is_symlink()
+assert os.readlink(root / 'etc/X11/xorg.conf.d/20-ember-virtual.conf') == '/etc/X11/ember-virtual.conf'
+assert (root / 'usr/local/sbin/ember-select-display').stat().st_mode & 0o111
+assert 'ember-select-display --no-restart' in (root / 'etc/systemd/system/lightdm.service.d/ember-display.conf').read_text()
+assert (root / 'etc/systemd/system/ember-display-watch.timer').is_file()
+assert (root / 'etc/systemd/system/ember-display-watch.service').is_file()
 assert (root / 'usr/local/bin/ember-device-settings').is_file()
 assert (root / 'opt/ember-provision/ember-hardware.py').is_file()
 assert (root / 'home/ember/.config/ember/initial.env').stat().st_uid == 1001
