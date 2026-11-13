@@ -38,7 +38,7 @@ class DisplayTests(unittest.TestCase):
             status.write_text('disconnected\n')
             subprocess.run(['bash', str(script)], check=True, env=env)
             subprocess.run(['bash', str(script)], check=True, env=env)
-            self.assertEqual(conf.resolve(), virtual)
+            self.assertEqual(conf.resolve(), virtual.resolve())
             self.assertEqual(log.read_text().splitlines(), ['restart'])
             status.write_text('connected\n')
             subprocess.run(['bash', str(script)], check=True, env=env)
