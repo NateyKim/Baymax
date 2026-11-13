@@ -8,7 +8,7 @@ import secrets
 import shutil
 import subprocess
 
-from image_settings import load, source
+from image_settings import load, source, wifi_networks
 
 HERE = Path(__file__).resolve().parent
 
@@ -37,11 +37,11 @@ def asset(name, spec, cache):
     return target
 
 
-def generate_credentials(access_password=None):
-    # An optional fixed access_password (private settings only) replaces both random passwords.
+def generate_credentials(access_password=None, linux_password=None, anydesk_password=None):
+    # Explicit per-service passwords override the generated defaults.
     return {'hostname': 'ember-' + secrets.token_hex(4), 'username': 'ember',
-            'linux_password': access_password or secrets.token_urlsafe(24),
-            'anydesk_password': access_password or secrets.token_urlsafe(24)}
+            'linux_password': linux_password or access_password or secrets.token_urlsafe(24),
+            'anydesk_password': anydesk_password or access_password or secrets.token_urlsafe(24)}
 
 
 def private_json(path, value):
@@ -80,7 +80,8 @@ def main():
             shutil.copyfile(downloaded, work / name if name == 'base.img.xz' else payload / name)
         for path in HERE.glob('*.py'):
             shutil.copyfile(path, work / path.name)
-        credentials = generate_credentials(settings.get('access_password'))
+        credentials = generate_credentials(settings.get('access_password'),
+                                           settings.get('linux_password'), settings.get('anydesk_password'))
         private_json(payload / 'credentials.json', credentials)
         private_json(payload / 'image-settings.private.json', settings)
         checkout = work / 'source.git'
@@ -101,7 +102,8 @@ def main():
         private_json(output / 'ready-image.json', {
             'image': image.name, 'length': image.stat().st_size, 'sha256': digest(image),
             'repository': selected['repository'], 'ref': selected['branch'], 'commit': commit,
-            'hostname': credentials['hostname'], 'wifi_ssid': settings['wifi']['ssid'],
+            'hostname': credentials['hostname'], 'wifi_ssid': wifi_networks(settings)[0]['ssid'],
+            'wifi_ssids': [wifi['ssid'] for wifi in wifi_networks(settings)],
             'gemini_key_configured': bool(settings['gemini_api_key'])})
         print('Ready:', image, flush=True)
         print('Private access details:', output / 'device-access.private.json', flush=True)

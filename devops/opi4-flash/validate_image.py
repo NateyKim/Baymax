@@ -3,10 +3,11 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shlex
 import stat
 import sys
 from unittest.mock import patch
-from image_settings import load, source, supplicant, timezone
+from image_settings import load, source, supplicant, timezone, wifi_networks
 
 root = Path(sys.argv[1])
 settings = load(sys.argv[2])
@@ -19,7 +20,12 @@ assert 'AUTO_SETUP_NET_WIFI_ENABLED=1' in (root / 'boot/dietpi.txt').read_text()
 assert f'AUTO_SETUP_TIMEZONE={timezone(settings)}' in (root / 'boot/dietpi.txt').read_text().splitlines()
 assert os.readlink(root / 'etc/localtime') == '/usr/share/zoneinfo/' + timezone(settings)
 assert (root / 'etc/timezone').read_text() == timezone(settings) + '\n'
-assert (root / 'etc/wpa_supplicant/wpa_supplicant.conf').read_text() == supplicant(settings['wifi'])
+assert (root / 'etc/wpa_supplicant/wpa_supplicant.conf').read_text() == supplicant(wifi_networks(settings))
+boot_wifi = (root / 'boot/dietpi-wifi.txt').read_text().splitlines()
+for index, network in enumerate(wifi_networks(settings)):
+    assert f"aWIFI_SSID[{index}]={shlex.quote(network['ssid'])}" in boot_wifi
+    assert f"aWIFI_KEY[{index}]={shlex.quote(network['password'])}" in boot_wifi
+    assert f"aWIFI_KEYMGR[{index}]={'WPA-PSK' if network['password'] else 'NONE'}" in boot_wifi
 assert json.loads((root / 'home/ember/.config/ember/device.json').read_text()) == source(settings)
 assert (root / 'home/ember/.config/ember/initial.env').read_text() == ('GOOGLE_API_KEY=' + json.dumps(settings['gemini_api_key'])
         + '\nBAYMAX_CAMERA_DEVICE=\nBAYMAX_DATA_DIR=/home/ember/ember-deployment/data\n')
@@ -31,7 +37,13 @@ for name in ['etc/ember/credentials.json', 'boot/dietpi.txt', 'boot/dietpi-wifi.
     assert stat.S_IMODE((root / name).stat().st_mode) == 0o600, name
 credentials = json.loads((root / 'etc/ember/credentials.json').read_text())
 assert len(credentials['anydesk_password']) >= 8
-assert credentials['linux_password'] != credentials['anydesk_password'] or settings.get('access_password')
+for name in ('linux_password', 'anydesk_password'):
+    if name in settings:
+        assert credentials[name] == settings[name]
+shared_password = settings.get('access_password') or (
+    'linux_password' in settings and 'anydesk_password' in settings and
+    settings['linux_password'] == settings['anydesk_password'])
+assert credentials['linux_password'] != credentials['anydesk_password'] or shared_password
 assert (root / 'etc/hostname').read_text().strip() == credentials['hostname']
 assert not (root / 'home/ember/.env').exists()
 assert (root / 'opt/ember-python/python/bin/python3.12').exists()

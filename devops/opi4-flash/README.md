@@ -10,29 +10,32 @@ Raspberry Pi: the Orange Pi 5 Max is set up with the clickables instead
 ([ORANGE_PI_SETUP.md](../../Baymax-main/ORANGE_PI_SETUP.md)). The reusable builder has offline checks; a fresh-card boot of this published
 version and eye-matrix hardware testing remain pending.
 
-## Three choices
+## First-boot choices
 
 Run the private configurator or copy `settings.example.json` to
 `settings.private.json` and edit it locally:
 
 ```json
 {
-  "branch": "release",
-  "wifi": {"ssid": "YOUR WIFI NAME", "password": ""},
+  "branch": "deploy",
+  "wifi_networks": [
+    {"ssid": "YOUR HOTSPOT", "password": "hotspot-password"},
+    {"ssid": "OPEN GUEST WIFI", "password": ""}
+  ],
   "gemini_api_key": "",
   "timezone": "America/Los_Angeles"
 }
 ```
 
-- **Branch:** a branch of this repository (`REPOSITORY` in `image_settings.py`,
-  `https://github.com/NateyKim/Baymax.git`), `deploy` by default for new SD configurations. The older git-checkout
-  updater keeps its existing `release` default unless the owner selects another branch. Startup fetches it, installs and checks the
-  release, then promotes it. The same branch is bundled as the first-install fallback
-  if Git is temporarily unavailable. Choosing an incompatible branch can fail
-  installation. Older settings files with `"pr": NUMBER` still work and follow
-  `refs/pull/NUMBER/head` of this repository (not of JoeKojima/Baymax).
-- **Wi-Fi:** one SSID and password, installed before first boot. A blank password
-  means open Wi-Fi. WPA passwords must be 8–63 UTF-8 bytes or a 64-digit hex PSK.
+- **Source:** the app defaults to the reviewed `deploy` branch and lists open Orange
+  Pi 4 Pro PRs from `NateyKim/Baymax`. A PR is for testing; its head can change.
+  Settings may use `"branch": "deploy"` or `"pr": NUMBER`. Startup fetches the
+  selected ref and bundles it as the first-install fallback if Git is unavailable.
+  Older branch and PR settings remain supported.
+- **Wi-Fi:** add up to five SSIDs. Each has its own password;
+  blank means an open network. The image writes all five DietPi first-boot slots
+  and the board's `wpa_supplicant` file. The old single `"wifi"` setting still works.
+  WPA passwords must be 8–63 UTF-8 bytes or a 64-digit hex PSK.
   Captive-portal sign-in is not automated. Use a reachable private network for
   SSH; public apartment/guest networks may isolate clients.
 - **Gemini key:** preload a key, or leave it blank to wait for Ember Setup.
@@ -51,10 +54,10 @@ Run the private configurator or copy `settings.example.json` to
   **Restart Ember**; `timedatectl` shows the current one.
 
 Every build generates a distinct hostname and separate random Linux/AnyDesk
-passwords. To use one password you can remember on every card instead, add
-`"access_password": "..."` (8-64 characters, no spaces) to `settings.private.json`;
-it then becomes both the Linux (SSH/sudo) and AnyDesk password. AnyDesk is
-reachable by its ID from any network, so a short shared password is weaker. No person's passwords, SSH identity or Wi-Fi defaults are included.
+passwords. The app can set `"linux_password"` and `"anydesk_password"`
+individually (8–64 characters, no spaces); leaving either blank generates a
+random one. The older shared `"access_password"` setting still works. AnyDesk
+is reachable by its ID from any network, so use a strong password. No person's passwords, SSH identity or Wi-Fi defaults are included.
 The outputs contain secrets: keep the settings, generated access file and image
 private. They are ignored by Git. Generate a separate image for each board.
 
@@ -132,10 +135,14 @@ first, then open the app. No separate Linux computer or Python installation is
 needed. The app creates an Ubuntu 24.04 VM named `ember-opi4-builder`, installs
 the builder's Linux tools there, and reuses its package cache for later cards.
 Allow at least 35 GiB free on the laptop; the VM is configured with a 50 GiB
-virtual disk and 4 GiB RAM. The first image can take an hour or more.
+virtual disk and 4 GiB RAM. The virtual disk grows as used. The cache and
+working image each occupy about 7 GiB, the copied image another 7 GiB, and
+Ubuntu, downloads and temporary files need additional space. The first image
+can take an hour or more.
 
-Enter the board's Wi-Fi, the Ember branch (normally `deploy`), time zone and
-optional Gemini key, choose an output folder, then click **Build image**. The
+Add the board's Wi-Fi networks, choose stable `deploy` or an open Orange Pi PR,
+set the board's time zone, and optionally enter a Gemini key and separate
+SSH/sudo and AnyDesk passwords. Choose an output folder, then click **Build image**. The
 app transfers these private settings into the local VM, builds one image, copies
 back `ember-opi4.img`, `device-access.private.json` and `ready-image.json`,
 and checks the image's SHA-256 against the manifest. It removes that build's VM

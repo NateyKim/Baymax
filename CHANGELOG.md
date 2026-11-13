@@ -1,8 +1,10 @@
 # MVP (unreleased)
 
-- Add a clickable Windows and Mac Orange Pi 4 Pro image builder. It uses a
-  local Multipass VM, returns the image and private access details, and verifies
-  the transferred image checksum before a separate SD writer flashes the card.
+- Add a clickable Windows and Mac Orange Pi 4 Pro image builder. It accepts up
+  to five secured or open Wi-Fi networks, stable deploy or open Orange Pi PRs,
+  board time zone and separate SSH/sudo and AnyDesk passwords. It uses a local
+  Multipass VM, returns the image and private access details, and verifies the
+  transferred image checksum before a separate SD writer flashes the card.
 
 - Establish NateyKim/Baymax as the Ember publishing authority. Add deploy,
   needshardwaretest, needssimtest and needssoftwaretest channel branches, with
