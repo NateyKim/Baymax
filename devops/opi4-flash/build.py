@@ -37,9 +37,9 @@ def asset(name, spec, cache):
     return target
 
 
-def generate_credentials(access_password=None, linux_password=None, anydesk_password=None):
+def generate_credentials(access_password=None, linux_password=None, anydesk_password=None, hostname=None):
     # Explicit per-service passwords override the generated defaults.
-    return {'hostname': 'ember-' + secrets.token_hex(4), 'username': 'ember',
+    return {'hostname': hostname or 'ember-' + secrets.token_hex(4), 'username': 'ember',
             'linux_password': linux_password or access_password or secrets.token_urlsafe(24),
             'anydesk_password': anydesk_password or access_password or secrets.token_urlsafe(24)}
 
@@ -81,7 +81,8 @@ def main():
         for path in HERE.glob('*.py'):
             shutil.copyfile(path, work / path.name)
         credentials = generate_credentials(settings.get('access_password'),
-                                           settings.get('linux_password'), settings.get('anydesk_password'))
+                                           settings.get('linux_password'), settings.get('anydesk_password'),
+                                           settings.get('hostname'))
         private_json(payload / 'credentials.json', credentials)
         private_json(payload / 'image-settings.private.json', settings)
         checkout = work / 'source.git'

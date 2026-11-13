@@ -28,6 +28,7 @@ class FlashApp:
         self.anydesk_password = tk.StringVar()
         self.show_passwords = tk.BooleanVar(value=False)
         self.timezone = tk.StringVar(value='America/Los_Angeles')
+        self.hostname = tk.StringVar()
         desktop = Path.home() / 'Desktop'
         self.output_parent = tk.StringVar(value=str(desktop if desktop.is_dir() else Path.home()))
         self.status = tk.StringVar(value='Add at least one Wi-Fi network, then build an image.')
@@ -67,8 +68,9 @@ class FlashApp:
         self.source_combo.grid(row=3, column=1, sticky='ew', padx=(12, 8), pady=3)
         ttk.Button(frame, text='Refresh PRs', command=self._refresh_sources).grid(
             row=3, column=2, sticky='ew')
-        ttk.Label(frame, text='Deploy is the reviewed default; PRs are for testing.').grid(
-            row=4, column=1, columnspan=2, sticky='w')
+        ttk.Label(frame, text='Board name (blank = random)').grid(row=4, column=0, sticky='w', pady=3)
+        ttk.Entry(frame, textvariable=self.hostname).grid(
+            row=4, column=1, columnspan=2, sticky='ew', padx=(12, 0), pady=3)
         ttk.Label(frame, text='Board time zone (reminders)').grid(row=5, column=0, sticky='w', pady=3)
         ttk.Combobox(frame, textvariable=self.timezone, values=(
             'America/Los_Angeles', 'America/Denver', 'America/Chicago',
@@ -210,6 +212,8 @@ class FlashApp:
                     'wifi_networks': list(self.networks),
                     'gemini_api_key': self.gemini_key.get().strip(),
                     'timezone': self.timezone.get().strip()}
+        if self.hostname.get().strip():
+            settings['hostname'] = self.hostname.get().strip()
         if self.linux_password.get():
             settings['linux_password'] = self.linux_password.get()
         if self.anydesk_password.get():

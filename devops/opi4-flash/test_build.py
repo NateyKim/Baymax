@@ -18,6 +18,9 @@ class BuildTests(unittest.TestCase):
         self.assertNotEqual(first['linux_password'], first['anydesk_password'])
         self.assertGreaterEqual(len(first['anydesk_password']), 24)
 
+    def test_named_board_keeps_its_hostname(self):
+        self.assertEqual(builder.generate_credentials(hostname='ember-002')['hostname'], 'ember-002')
+
     def test_fixed_access_password_sets_both_logins(self):
         fixed = builder.generate_credentials('longenough')
         self.assertEqual((fixed['linux_password'], fixed['anydesk_password']), ('longenough', 'longenough'))

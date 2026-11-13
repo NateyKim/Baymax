@@ -84,6 +84,12 @@ class ImageSettingsTests(unittest.TestCase):
         self.assertIn('AUTO_SETUP_TIMEZONE={timezone(settings)}', validate_image)
         self.assertIn("readlink(root / 'etc/localtime')", validate_image)
 
+    def test_optional_board_name(self):
+        self.assertEqual(validate(self.settings | {'hostname': 'ember-002'})['hostname'], 'ember-002')
+        for name in ('-ember', 'Ember-002', 'ember_002', 'ember-', 'a' * 64):
+            with self.assertRaises(ValueError):
+                validate(self.settings | {'hostname': name})
+
     def test_wpa_derivation_matches_known_vector(self):
         text = supplicant(self.settings['wifi'])
         self.assertIn('ssid=49454545', text)

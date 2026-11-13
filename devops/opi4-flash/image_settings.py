@@ -12,7 +12,7 @@ REPOSITORY = 'https://github.com/NateyKim/Baymax.git'
 # The board's clock unless the private settings name another time zone. Daily
 # check-ins, reminders and the greeting's time of day follow it.
 DEFAULT_TIMEZONE = 'America/Los_Angeles'
-OPTIONAL = {'access_password', 'linux_password', 'anydesk_password', 'timezone'}
+OPTIONAL = {'access_password', 'linux_password', 'anydesk_password', 'timezone', 'hostname'}
 MAX_WIFI_NETWORKS = 5
 
 
@@ -53,6 +53,9 @@ def validate(value):
             raise ValueError(name + ' must be 8-64 characters without spaces.')
     if 'timezone' in value and not valid_timezone(value['timezone']):
         raise ValueError('timezone must be a time zone name such as America/New_York or UTC.')
+    if 'hostname' in value and (not isinstance(value['hostname'], str) or
+                                re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', value['hostname']) is None):
+        raise ValueError('hostname must use lowercase letters, digits and hyphens (1-63 characters).')
     if 'branch' in value and not valid_branch(value['branch']):
         raise ValueError('branch must be a valid Git branch name, such as release.')
     # Older private settings name a pull request instead of a branch.

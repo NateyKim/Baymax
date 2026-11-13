@@ -53,8 +53,9 @@ Run the private configurator or copy `settings.example.json` to
   America/New_York` (or `sudo dietpi-config`, Language/Regional Options), then
   **Restart Ember**; `timedatectl` shows the current one.
 
-Every build generates a distinct hostname and separate random Linux/AnyDesk
-passwords. The app can set `"linux_password"` and `"anydesk_password"`
+Every build generates a distinct hostname unless you enter a board name such as
+`ember-002`. It also generates separate random Linux/AnyDesk passwords. The app
+can set `"linux_password"` and `"anydesk_password"`
 individually (8–64 characters, no spaces); leaving either blank generates a
 random one. The older shared `"access_password"` setting still works. AnyDesk
 is reachable by its ID from any network, so use a strong password. No person's passwords, SSH identity or Wi-Fi defaults are included.
