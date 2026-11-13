@@ -12,6 +12,21 @@ import package_app
 
 
 class FlashVmTests(unittest.TestCase):
+    def test_windows_transfer_allows_only_post_copy_permissions_warning(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'image.bin'
+            def copy_then_warn(argv, **kwargs):
+                target.write_bytes(b'\x00image\xff')
+                return subprocess.CompletedProcess(argv, 1, stdout='',
+                                                   stderr='cannot set permissions for local file')
+            with patch.object(flash_vm.subprocess, 'run', side_effect=copy_then_warn):
+                flash_vm.transfer_from_vm('multipass', 'vm:/image', target, lambda _: None)
+            self.assertEqual(target.read_bytes(), b'\x00image\xff')
+            with patch.object(flash_vm.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                    [], 1, stdout='', stderr='network failed')):
+                with self.assertRaisesRegex(RuntimeError, 'network failed'):
+                    flash_vm.transfer_from_vm('multipass', 'vm:/image', target, lambda _: None)
+
     def test_existing_multipass_vm_is_reused(self):
         listing = {'list': [{'name': 'ember-opi4-builder', 'state': 'Running'}]}
         with patch.object(flash_vm.subprocess, 'run', return_value=subprocess.CompletedProcess(

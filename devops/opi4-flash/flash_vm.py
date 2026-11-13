@@ -100,6 +100,19 @@ def verify_image(output):
     return manifest
 
 
+def transfer_from_vm(multipass, source, destination, log):
+    """Multipass can copy on Windows but fail while applying Linux permissions."""
+    log(f'$ {multipass} transfer {source} {destination}')
+    result = subprocess.run([multipass, 'transfer', source, str(destination)],
+                            capture_output=True, text=True)
+    output = result.stdout + result.stderr
+    if result.returncode and not ('cannot set permissions for local file' in output.lower()
+                                  and destination.is_file()):
+        raise RuntimeError('Multipass transfer failed: ' + output.strip())
+    if not destination.is_file():
+        raise RuntimeError('Multipass did not create ' + str(destination))
+
+
 def build_image(settings, output_parent, log):
     settings = validate(settings)
     multipass = multipass_path()
@@ -136,7 +149,11 @@ def build_image(settings, output_parent, log):
         run([multipass, 'exec', VM, '--', 'sudo', 'chown', '-R', 'ubuntu:ubuntu',
              f'{remote}/output'], log)
         for name in ('ember-opi4.img', 'device-access.private.json', 'ready-image.json'):
-            run([multipass, 'transfer', f'{VM}:{remote}/output/{name}', name], log, cwd=output)
+            source = f'{VM}:{remote}/output/{name}'
+            if os.name == 'nt':
+                transfer_from_vm(multipass, source, output / name, log)
+            else:
+                run([multipass, 'transfer', source, name], log, cwd=output)
         manifest = verify_image(output)
         run([multipass, 'exec', VM, '--', 'sudo', 'rm', '-rf', remote], log)
     log('Image verified and ready to write with an SD card image writer.')
