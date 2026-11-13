@@ -7,7 +7,7 @@ import subprocess
 import sys
 import re
 import tarfile
-from image_settings import load, source, supplicant, dietpi_wifi, timezone, wifi_networks
+from image_settings import load, source, supplicant, dietpi_wifi, timezone, wifi_networks, valid_hostname
 
 root = Path(sys.argv[1]).resolve()
 payload = Path(sys.argv[2]).resolve()
@@ -15,7 +15,7 @@ assert root != Path('/') and (root / 'etc/debian_version').is_file()
 assert (root / 'etc/os-release').read_text().find('VERSION_ID="13"') >= 0
 credentials = json.loads((payload / 'credentials.json').read_text())
 hostname = credentials['hostname']
-assert re.fullmatch(r'ember-[a-f0-9]{8}', hostname), 'Invalid generated hostname'
+assert valid_hostname(hostname), 'Invalid hostname'
 settings = load(payload / 'image-settings.private.json')
 bundle = json.loads((payload / 'bundle-source.json').read_text())
 assert (bundle['repository'], bundle['branch']) == (source(settings)['repository'], source(settings)['branch']), 'Bundle does not match selected PR'

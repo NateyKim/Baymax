@@ -30,6 +30,11 @@ def valid_timezone(name):
             and re.fullmatch(r'[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*', name) is not None)
 
 
+def valid_hostname(name):
+    return (isinstance(name, str) and
+            re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', name) is not None)
+
+
 def timezone(settings):
     return settings.get('timezone', DEFAULT_TIMEZONE)
 
@@ -53,8 +58,7 @@ def validate(value):
             raise ValueError(name + ' must be 8-64 characters without spaces.')
     if 'timezone' in value and not valid_timezone(value['timezone']):
         raise ValueError('timezone must be a time zone name such as America/New_York or UTC.')
-    if 'hostname' in value and (not isinstance(value['hostname'], str) or
-                                re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', value['hostname']) is None):
+    if 'hostname' in value and not valid_hostname(value['hostname']):
         raise ValueError('hostname must use lowercase letters, digits and hyphens (1-63 characters).')
     if 'branch' in value and not valid_branch(value['branch']):
         raise ValueError('branch must be a valid Git branch name, such as release.')
