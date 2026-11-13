@@ -5,7 +5,7 @@
   },
   "anydesk-arm64.deb": {
     "url": "https://deb.anydesk.com/pool/main/a/anydesk/anydesk_8.1.0_arm64.deb",
-    "sha256": "ba8edcd17ac18824b7de34ae42c013dc859c43fad384bee4f6fb598d7d188dc2"
+    "sha256": "9e50a5064688b0335f2606c7320c866d2679e3103707157f09d7629eb2b906e8"
   },
   "python-arm64.tar.gz": {
     "url": "https://releases.astral.sh/github/python-build-standalone/releases/download/20261013/cpython-3.12.15%2B20261013-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
