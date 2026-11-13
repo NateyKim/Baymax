@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+conf=/etc/X11/xorg.conf.d/20-ember-virtual.conf
+virtual=/etc/X11/ember-virtual.conf
+hdmi=false
+for status in /sys/class/drm/*HDMI*/status; do
+    if [[ -f $status && $(<"$status") == connected ]]; then
+        hdmi=true
+        break
+    fi
+done
+
+changed=false
+if $hdmi; then
+    if [[ -L $conf && $(readlink "$conf") == "$virtual" ]]; then
+        rm "$conf"
+        changed=true
+    fi
+else
+    if [[ ! -L $conf || $(readlink "$conf") != "$virtual" ]]; then
+        ln -sfn "$virtual" "$conf"
+        changed=true
+    fi
+fi
+
+if $changed && [[ ${1:-} != --no-restart ]] && systemctl is-active --quiet lightdm; then
+    systemctl restart lightdm
+fi

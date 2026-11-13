@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Ember HDMI connection
+
+[Timer]
+OnBootSec=10s
+OnUnitActiveSec=10s
+Unit=ember-display-watch.service
+
+[Install]
+WantedBy=timers.target

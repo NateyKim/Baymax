@@ -43,6 +43,7 @@ ln -sfn /usr/lib/systemd/system/lightdm.service /etc/systemd/system/display-mana
 systemctl daemon-reload
 systemctl set-default graphical.target
 systemctl enable lightdm anydesk
+systemctl enable --now ember-display-watch.timer
 systemctl restart lightdm
 systemctl start anydesk
 systemctl enable --now ember-anydesk-id.timer
