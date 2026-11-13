@@ -1,5 +1,9 @@
 # MVP (unreleased)
 
+- Add a clickable Windows and Mac Orange Pi 4 Pro image builder. It uses a
+  local Multipass VM, returns the image and private access details, and verifies
+  the transferred image checksum before a separate SD writer flashes the card.
+
 - Establish NateyKim/Baymax as the Ember publishing authority. Add deploy,
   needshardwaretest, needssimtest and needssoftwaretest channel branches, with
   offline checks and image build checks on every channel push. Channel image

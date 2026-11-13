@@ -123,6 +123,34 @@ from [DietPi](https://dietpi.com/downloads/images/),
 [Astral's Python builds](https://github.com/astral-sh/python-build-standalone).
 They are not redistributed in this repository.
 
+## Clickable app for Windows and Mac
+
+Download **Ember Image Builder** for Windows, Apple Silicon Mac or Intel Mac
+from the artifacts of the [flash app workflow](../../.github/workflows/flash-app.yml).
+Install [Multipass](https://canonical.com/multipass/docs/latest/how-to-guides/install-multipass/)
+first, then open the app. No separate Linux computer or Python installation is
+needed. The app creates an Ubuntu 24.04 VM named `ember-opi4-builder`, installs
+the builder's Linux tools there, and reuses its package cache for later cards.
+Allow at least 35 GiB free on the laptop; the VM is configured with a 50 GiB
+virtual disk and 4 GiB RAM. The first image can take an hour or more.
+
+Enter the board's Wi-Fi, the Ember branch (normally `deploy`), time zone and
+optional Gemini key, choose an output folder, then click **Build image**. The
+app transfers these private settings into the local VM, builds one image, copies
+back `ember-opi4.img`, `device-access.private.json` and `ready-image.json`,
+and checks the image's SHA-256 against the manifest. It removes that build's VM
+work files after a successful transfer, leaving the reusable package cache.
+If a build fails, its VM work files remain for recovery and may consume space.
+The app does not send the settings to a cloud build service. The builder still
+fetches the selected Ember branch and its verified dependencies over the Internet.
+
+Use an image writer such as [balenaEtcher](https://etcher.balena.io/) to write
+and verify `ember-opi4.img` on the intended microSD card. The app never selects
+or erases a physical disk. Generated access passwords and any configured key are
+private; keep the output folder private. These app bundles are unsigned, so
+Windows or macOS may ask you to confirm opening them. Building in Multipass on
+Windows and Mac still needs a fresh-image hardware test before fleet use.
+
 ## Flash and first boot
 
 1. Use an image writer such as [balenaEtcher](https://etcher.balena.io/) to write
