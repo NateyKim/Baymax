@@ -7,7 +7,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 BUILDER_FILES = ('assets.json', 'build.py', 'build_linux.sh', 'configure_image.py', 'image_settings.py',
-                 'inject_image.py', 'validate_image.py')
+                 'inject_image.py', 'validate_image.py', 'pr_sources.py', 'settings.example.json')
 
 
 def stage_builder(destination):

@@ -53,6 +53,8 @@ class FlashVmTests(unittest.TestCase):
             staged = Path(directory) / 'builder'
             package_app.stage_builder(staged)
             self.assertTrue((staged / 'build.py').is_file())
+            self.assertTrue((staged / 'pr_sources.py').is_file())
+            self.assertTrue((staged / 'settings.example.json').is_file())
             self.assertTrue((staged / 'payload/ember-provision').is_file())
             self.assertFalse((staged / 'settings.private.json').exists())
             self.assertFalse((staged / 'flash_app.py').exists())
