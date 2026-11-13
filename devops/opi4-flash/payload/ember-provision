@@ -59,6 +59,13 @@ if [ ! -f /var/lib/ember/anydesk-password-set ]; then
   done
   test -f /var/lib/ember/anydesk-password-set
 fi
+# Setting unattended access as root can create root-owned files in the desktop
+# user's AnyDesk directory, which makes its tray process abort on login.
+if [ -d /home/ember/.anydesk ]; then
+  chown -R ember:ember /home/ember/.anydesk
+  systemctl restart lightdm
+  systemctl restart anydesk
+fi
 stage '6/6 Remote desktop ready; requesting Ember dependency installation'
 systemctl enable ember-update.service
 systemctl start --no-block ember-update.service

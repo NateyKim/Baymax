@@ -1,5 +1,7 @@
 # MVP (unreleased)
 
+- Repair AnyDesk user-directory ownership after first-boot password setup so
+  its desktop process starts in the virtual or HDMI session.
 - Add a clickable Windows and Mac Orange Pi 4 Pro image builder. It accepts up
   to five secured or open Wi-Fi networks, stable deploy or open Orange Pi PRs,
   board time zone and separate SSH/sudo and AnyDesk passwords. It uses a local
