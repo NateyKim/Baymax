@@ -5,6 +5,9 @@
   board time zone and separate SSH/sudo and AnyDesk passwords. It uses a local
   Multipass VM, returns the image and private access details, and verifies the
   transferred image checksum before a separate SD writer flashes the card.
+- Orange Pi 4 Pro images now select HDMI when connected and a virtual display
+  otherwise, so AnyDesk remains usable after monitor changes. Tested on
+  ember-001 with HDMI and after unplugging; new-image validation remains pending.
 
 - Establish NateyKim/Baymax as the Ember publishing authority. Add deploy,
   needshardwaretest, needssimtest and needssoftwaretest channel branches, with

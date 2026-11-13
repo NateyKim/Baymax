@@ -153,8 +153,16 @@ for name in ['ember-provision.service', 'ember-update.service', 'ember-status.se
     image_directory(link.parent)
     link.unlink(missing_ok=True)
     link.symlink_to('../' + name)
-copy('20-ember-virtual.conf', '/etc/X11/xorg.conf.d/20-ember-virtual.conf')
+copy('20-ember-virtual.conf', '/etc/X11/ember-virtual.conf')
+virtual_link = root / 'etc/X11/xorg.conf.d/20-ember-virtual.conf'
+image_directory(virtual_link.parent)
+virtual_link.unlink(missing_ok=True)
+virtual_link.symlink_to('/etc/X11/ember-virtual.conf')
 copy('45-ember-primary-display', '/etc/X11/Xsession.d/45-ember-primary-display')
+copy('ember-select-display', '/usr/local/sbin/ember-select-display', 0o755)
+copy('ember-display.conf', '/etc/systemd/system/lightdm.service.d/ember-display.conf')
+for name in ['ember-display-watch.service', 'ember-display-watch.timer']:
+    copy(name, '/etc/systemd/system/' + name)
 for name in ['ember-anydesk-id.service', 'ember-anydesk-id.timer']:
     copy(name, '/etc/systemd/system/' + name)
 timer_link = root / 'etc/systemd/system/timers.target.wants/ember-anydesk-id.timer'

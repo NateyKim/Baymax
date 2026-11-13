@@ -173,8 +173,10 @@ Windows and Mac still needs a fresh-image hardware test before fleet use.
    The page shows numbered setup stages, recent package activity and AnyDesk ID.
    ARM voice-analysis builds may be slow; keep power and internet available.
 4. Connect to that ID in AnyDesk with the generated **AnyDesk** password. The
-   virtual 1280×720 Xorg/XFCE desktop needs no HDMI monitor. For terminal/sudo use
-   the generated **Linux** password, not the AnyDesk password.
+   desktop uses HDMI when a monitor is connected and a virtual 1280×720 display
+   otherwise. Adding or removing HDMI briefly disconnects AnyDesk while the
+   desktop restarts; reconnect to the same ID after about 10–20 seconds. For
+   terminal/sudo use the generated **Linux** password, not the AnyDesk password.
 5. Open **Ember Setup** to inspect devices/key or **Ember Device Settings** for
    Wi-Fi, Git source, update, start/stop and logs. A single unambiguous USB input,
    USB output and camera can be selected automatically. Saved choices are resolved

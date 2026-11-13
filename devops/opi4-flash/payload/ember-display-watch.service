@@ -1,0 +1,6 @@
+[Unit]
+Description=Switch Ember desktop between HDMI and virtual display
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ember-select-display

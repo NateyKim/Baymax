@@ -1,6 +1,9 @@
 settings.private.json
 *.private.json
 output/
+build/
+dist/
+*.spec
 .cache/
 __pycache__/
 *.pyc
