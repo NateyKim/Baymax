@@ -4,7 +4,7 @@ PYTHON=/opt/ember-python/python/bin/python3.12
 CONFIG=/opt/ember-provision/ember-device-config.py
 while CHOICE=$(whiptail --title 'Ember Device Settings' --menu 'Choose what to change. Settings survive Ember Git updates.' 22 78 12 \
   key 'Gemini key, microphone, speaker and camera' \
-  wifi 'Hotspot / Wi-Fi connections (administrator password required)' \
+  wifi 'Add a Wi-Fi network (administrator password required)' \
   git 'Git repository, branch and automatic updates' \
   update 'Check Git and install an update now' \
   start 'Start / restart Ember' \
@@ -17,8 +17,8 @@ while CHOICE=$(whiptail --title 'Ember Device Settings' --menu 'Choose what to c
     key) xdg-open http://127.0.0.1:8766/ ;;
     wifi)
       clear
-      echo 'Changing Wi-Fi can disconnect AnyDesk. Keep a known working hotspot available.'
-      sudo /boot/dietpi/dietpi-network
+      sudo ember-wifi
+      read -r -p 'Press Enter to return.'
       ;;
     git)
       SETTINGS=$("$PYTHON" "$CONFIG" read) || { read -r -p 'Press Enter to return.'; continue; }

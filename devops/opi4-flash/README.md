@@ -185,6 +185,13 @@ Windows and Mac still needs a fresh-image hardware test before fleet use.
    and restart; the launcher stops rather than guesses. No camera permits audio-only
    operation. A saved disabled camera stays disabled.
 
+To save another network without replacing the existing ones, open a terminal on
+the board and run `sudo ember-wifi`, or choose **Add a Wi-Fi network** in Ember
+Device Settings. Enter the SSID and a password (blank for open Wi-Fi), then
+choose whether it should take priority over saved networks. The default adds a
+fallback network; choosing preferred can switch Wi-Fi and disconnect SSH or
+AnyDesk. The command uses the board's `wpa_supplicant` setup, not NetworkManager.
+
 The builder has already installed the system packages and the selected branch's
 Python packages from its `Baymax-main/requirements-orange-pi.txt` (audio cleanup, eyes,
 audiobooks, wake words and memory included; the only dependency list), checked that

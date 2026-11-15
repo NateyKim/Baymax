@@ -1,5 +1,7 @@
 # MVP (unreleased)
 
+- Add an Ember Wi-Fi command and settings entry that saves secured or open
+  networks alongside existing profiles and makes priority explicit.
 - Repair AnyDesk user-directory ownership after first-boot password setup so
   its desktop process starts in the virtual or HDMI session.
 - Add a clickable Windows and Mac Orange Pi 4 Pro image builder. It accepts up

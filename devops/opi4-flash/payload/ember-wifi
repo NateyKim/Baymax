@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+"""Add a saved Wi-Fi network without replacing the board's other networks."""
+import getpass
+import hashlib
+import os
+import re
+import subprocess
+import sys
+
+
+def wifi(*args):
+    result = subprocess.run(['wpa_cli', '-i', 'wlan0', *args], capture_output=True, text=True)
+    output = result.stdout.strip()
+    if result.returncode or not output or output.splitlines()[-1].startswith('FAIL'):
+        raise RuntimeError(result.stderr.strip() or output or 'wpa_cli failed')
+    return output
+
+
+def networks(call=wifi):
+    saved = []
+    for line in call('list_networks').splitlines():
+        fields = line.split('\t')
+        if len(fields) >= 2 and fields[0].isdigit():
+            saved.append((fields[0], fields[1], '[CURRENT]' in line))
+    return saved
+
+
+def add(ssid, password, preferred, call=wifi):
+    if not ssid or len(ssid.encode()) > 32:
+        raise ValueError('Wi-Fi name must be 1–32 UTF-8 bytes.')
+    if password and not (8 <= len(password.encode()) <= 63 or re.fullmatch(r'[0-9a-fA-F]{64}', password)):
+        raise ValueError('Password must be 8–63 UTF-8 bytes or a 64-digit hex key.')
+    saved = networks(call)
+    priorities = []
+    for network_id, _, _ in saved:
+        try:
+            priorities.append(int(call('get_network', network_id, 'priority').splitlines()[-1]))
+        except (RuntimeError, ValueError):
+            priorities.append(0)
+    priority = (max(priorities) + 1 if preferred else max(0, min(priorities) - 1)) if priorities else 100
+    network_id = call('add_network').splitlines()[-1]
+    if not network_id.isdigit():
+        raise RuntimeError('Could not create a Wi-Fi profile: ' + network_id)
+    try:
+        call('set_network', network_id, 'ssid', ssid.encode().hex())
+        if password:
+            psk = password.lower() if re.fullmatch(r'[0-9a-fA-F]{64}', password) else hashlib.pbkdf2_hmac(
+                'sha1', password.encode(), ssid.encode(), 4096, 32).hex()
+            call('set_network', network_id, 'key_mgmt', 'WPA-PSK')
+            call('set_network', network_id, 'psk', psk)
+        else:
+            call('set_network', network_id, 'key_mgmt', 'NONE')
+        call('set_network', network_id, 'priority', str(priority))
+        call('enable_network', network_id)
+        call('save_config')
+    except Exception:
+        try:
+            call('remove_network', network_id)
+        except Exception:
+            pass
+        raise
+    return network_id, priority
+
+
+def main():
+    if os.geteuid() != 0:
+        raise SystemExit('Run: sudo ember-wifi')
+    print('Saved Wi-Fi networks:')
+    for _, name, current in networks():
+        print('  ' + name + (' (connected)' if current else ''))
+    ssid = input('New Wi-Fi name (SSID): ').strip()
+    if any(name == ssid for _, name, _ in networks()):
+        raise SystemExit('This Wi-Fi name is already saved. No settings changed.')
+    password = getpass.getpass('Password (leave blank for open Wi-Fi): ')
+    preferred = input('Prefer this over saved networks? This may disconnect remote access. [y/N] ').lower() == 'y'
+    network_id, priority = add(ssid, password, preferred)
+    print(f'Saved {ssid} as network {network_id}, priority {priority}. Existing networks kept.')
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (RuntimeError, ValueError, EOFError, KeyboardInterrupt) as error:
+        raise SystemExit(str(error) or 'Cancelled.')
