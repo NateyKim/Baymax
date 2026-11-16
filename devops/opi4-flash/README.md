@@ -63,6 +63,21 @@ is reachable by its ID from any network, so use a strong password. No person's p
 The outputs contain secrets: keep the settings, generated access file and image
 private. They are ignored by Git. Generate a separate image for each board.
 
+## Link a new card to the fleet console
+
+In the admin-only website console, open **OP4's**, enter the board name (for
+example `ember-004`), and create its fleet key. It appears only once. Enter the
+same board name and paste the key into the desktop image builder before building.
+The key is kept in the private image and never written to `ready-image.json`.
+After the board reaches the internet, its status-only agent checks in about
+once a minute with the AnyDesk ID and actual Git ref/commit. You can import
+`ready-image.json` on the same tab to record what image was built. An imported
+manifest alone does not establish that a board is online.
+
+Replacing a fleet key revokes the old image's access. Reflash the card with the
+new key, or install the new key on the existing board over SSH promptly.
+This first agent does not apply fleet-console commands or settings.
+
 ## Build on Linux
 
 Use a Linux host/VM with Python 3.12 or newer, root access and loop-device support.

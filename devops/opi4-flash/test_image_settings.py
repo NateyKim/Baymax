@@ -26,6 +26,12 @@ class ImageSettingsTests(unittest.TestCase):
             self.assertEqual(load(path), self.settings)
             self.assertEqual(source(load(path)), {'repository': REPOSITORY, 'branch': 'release', 'auto_update': True})
 
+    def test_fleet_key_is_private_and_matches_board_name(self):
+        key = '002.' + 'a' * 64
+        self.assertEqual(validate(self.settings | {'hostname': 'ember-002', 'fleet_device_key': key})['fleet_device_key'], key)
+        with self.assertRaises(ValueError):
+            validate(self.settings | {'hostname': 'ember-003', 'fleet_device_key': key})
+
     def test_older_pr_settings_still_load_and_follow_the_pr_ref(self):
         old = {'pr': 20, 'wifi': self.settings['wifi'], 'gemini_api_key': 'test-key'}
         self.assertEqual(validate(old), old)

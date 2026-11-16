@@ -1,0 +1,10 @@
+[Unit]
+Description=Check in with Ember fleet every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+Unit=ember-fleet-agent.service
+
+[Install]
+WantedBy=timers.target

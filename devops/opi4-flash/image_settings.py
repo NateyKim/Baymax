@@ -12,7 +12,7 @@ REPOSITORY = 'https://github.com/NateyKim/Baymax.git'
 # The board's clock unless the private settings name another time zone. Daily
 # check-ins, reminders and the greeting's time of day follow it.
 DEFAULT_TIMEZONE = 'America/Los_Angeles'
-OPTIONAL = {'access_password', 'linux_password', 'anydesk_password', 'timezone', 'hostname'}
+OPTIONAL = {'access_password', 'linux_password', 'anydesk_password', 'timezone', 'hostname', 'fleet_device_key'}
 MAX_WIFI_NETWORKS = 5
 
 
@@ -60,6 +60,11 @@ def validate(value):
         raise ValueError('timezone must be a time zone name such as America/New_York or UTC.')
     if 'hostname' in value and not valid_hostname(value['hostname']):
         raise ValueError('hostname must use lowercase letters, digits and hyphens (1-63 characters).')
+    if 'fleet_device_key' in value:
+        fleet_key = value['fleet_device_key']
+        match = re.fullmatch(r'([a-z0-9-]{1,32})\.[0-9a-f]{64}', fleet_key) if isinstance(fleet_key, str) else None
+        if not match or value.get('hostname') != 'ember-' + match.group(1):
+            raise ValueError('Fleet key must match the board name enrolled in the OP4 console.')
     if 'branch' in value and not valid_branch(value['branch']):
         raise ValueError('branch must be a valid Git branch name, such as release.')
     # Older private settings name a pull request instead of a branch.

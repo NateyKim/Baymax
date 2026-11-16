@@ -29,6 +29,7 @@ class FlashApp:
         self.show_passwords = tk.BooleanVar(value=False)
         self.timezone = tk.StringVar(value='America/Los_Angeles')
         self.hostname = tk.StringVar()
+        self.fleet_device_key = tk.StringVar()
         desktop = Path.home() / 'Desktop'
         self.output_parent = tk.StringVar(value=str(desktop if desktop.is_dir() else Path.home()))
         self.status = tk.StringVar(value='Leave Wi-Fi empty for phone setup, or add saved networks.')
@@ -39,11 +40,11 @@ class FlashApp:
 
     def _layout(self):
         self.root.title('Ember Image Builder')
-        self.root.minsize(700, 680)
+        self.root.minsize(700, 720)
         frame = ttk.Frame(self.root, padding=16)
         frame.pack(fill='both', expand=True)
         frame.columnconfigure(1, weight=1)
-        frame.rowconfigure(12, weight=1)
+        frame.rowconfigure(13, weight=1)
         ttk.Label(frame, text='Ember · Orange Pi 4 Pro', font=('TkDefaultFont', 17, 'bold')).grid(
             row=0, column=0, columnspan=3, sticky='w')
         ttk.Label(frame, text='Build a private SD image on this laptop using a local Linux VM.').grid(
@@ -73,28 +74,31 @@ class FlashApp:
         ttk.Label(frame, text='Board name (blank = random)').grid(row=4, column=0, sticky='w', pady=3)
         ttk.Entry(frame, textvariable=self.hostname).grid(
             row=4, column=1, columnspan=2, sticky='ew', padx=(12, 0), pady=3)
-        ttk.Label(frame, text='Board time zone (reminders)').grid(row=5, column=0, sticky='w', pady=3)
+        ttk.Label(frame, text='Fleet key (optional; from OP4 tab)').grid(row=5, column=0, sticky='w', pady=3)
+        fleet_entry = ttk.Entry(frame, textvariable=self.fleet_device_key, show='*')
+        fleet_entry.grid(row=5, column=1, columnspan=2, sticky='ew', padx=(12, 0), pady=3)
+        ttk.Label(frame, text='Board time zone (reminders)').grid(row=6, column=0, sticky='w', pady=3)
         ttk.Combobox(frame, textvariable=self.timezone, values=(
             'America/Los_Angeles', 'America/Denver', 'America/Chicago',
-            'America/New_York', 'UTC')).grid(row=5, column=1, columnspan=2,
+            'America/New_York', 'UTC')).grid(row=6, column=1, columnspan=2,
                                            sticky='ew', padx=(12, 0), pady=3)
-        self.password_entries = []
+        self.password_entries = [fleet_entry]
         for row, label, value in (
-                (6, 'Gemini key (optional)', self.gemini_key),
-                (7, 'SSH/sudo password (blank = random)', self.linux_password),
-                (8, 'AnyDesk password (blank = random)', self.anydesk_password)):
+                (7, 'Gemini key (optional)', self.gemini_key),
+                (8, 'SSH/sudo password (blank = random)', self.linux_password),
+                (9, 'AnyDesk password (blank = random)', self.anydesk_password)):
             ttk.Label(frame, text=label).grid(row=row, column=0, sticky='w', pady=3)
             entry = ttk.Entry(frame, textvariable=value, show='*')
             entry.grid(row=row, column=1, columnspan=2, sticky='ew', padx=(12, 0), pady=3)
             self.password_entries.append(entry)
-        ttk.Label(frame, text='Save image in').grid(row=9, column=0, sticky='w', pady=3)
+        ttk.Label(frame, text='Save image in').grid(row=10, column=0, sticky='w', pady=3)
         ttk.Entry(frame, textvariable=self.output_parent).grid(
-            row=9, column=1, sticky='ew', padx=(12, 8), pady=3)
-        ttk.Button(frame, text='Browse…', command=self._browse).grid(row=9, column=2, sticky='ew')
+            row=10, column=1, sticky='ew', padx=(12, 8), pady=3)
+        ttk.Button(frame, text='Browse…', command=self._browse).grid(row=10, column=2, sticky='ew')
         ttk.Label(frame, text='Needs Multipass and about 35 GiB free. First build may take an hour.').grid(
-            row=10, column=0, columnspan=3, sticky='w', pady=(8, 7))
+            row=11, column=0, columnspan=3, sticky='w', pady=(8, 7))
         actions = ttk.Frame(frame)
-        actions.grid(row=11, column=0, columnspan=3, sticky='w')
+        actions.grid(row=12, column=0, columnspan=3, sticky='w')
         self.build_button = ttk.Button(actions, text='Build image', command=self._start)
         self.build_button.pack(side='left')
         ttk.Button(actions, text='Install Multipass', command=lambda: webbrowser.open(
@@ -106,7 +110,7 @@ class FlashApp:
         ttk.Checkbutton(actions, text='Show passwords', variable=self.show_passwords,
                         command=self._toggle_passwords).pack(side='left', padx=8)
         progress_area = ttk.Frame(frame)
-        progress_area.grid(row=12, column=0, columnspan=3, sticky='nsew', pady=(12, 0))
+        progress_area.grid(row=13, column=0, columnspan=3, sticky='nsew', pady=(12, 0))
         progress_area.columnconfigure(0, weight=1)
         progress_area.rowconfigure(2, weight=1)
         ttk.Label(progress_area, textvariable=self.status, wraplength=650).grid(row=0, sticky='w')
@@ -216,6 +220,8 @@ class FlashApp:
                     'timezone': self.timezone.get().strip()}
         if self.hostname.get().strip():
             settings['hostname'] = self.hostname.get().strip()
+        if self.fleet_device_key.get().strip():
+            settings['fleet_device_key'] = self.fleet_device_key.get().strip()
         if self.linux_password.get():
             settings['linux_password'] = self.linux_password.get()
         if self.anydesk_password.get():

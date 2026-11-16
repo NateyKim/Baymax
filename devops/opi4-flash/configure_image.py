@@ -49,7 +49,7 @@ def main():
     zone = input(f'Time zone, e.g. America/New_York [{timezone(old)}]: ').strip() or timezone(old)
     while not valid_timezone(zone):
         zone = input(f'Not a time zone name. Time zone [{DEFAULT_TIMEZONE}]: ').strip() or DEFAULT_TIMEZONE
-    kept = {name: old[name] for name in ('access_password', 'linux_password', 'anydesk_password') if name in old}
+    kept = {name: old[name] for name in ('access_password', 'linux_password', 'anydesk_password', 'hostname', 'fleet_device_key') if name in old}
     networks = ([{'ssid': ssid, 'password': password}] + previous[1:]) if ssid else []
     save_private(args.settings, {'branch': branch, 'wifi_networks': networks,
                                  'gemini_api_key': key, 'timezone': zone} | kept)

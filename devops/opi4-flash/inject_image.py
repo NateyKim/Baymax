@@ -128,6 +128,7 @@ copy('credentials.json', '/etc/ember/credentials.json', 0o600)
 write('/etc/ember/wifi-setup.json', json.dumps({'password': credentials['setup_wifi_password']}) + '\n', 0o600)
 for name in ['ember.bundle', 'bundle-source.json', 'anydesk-arm64.deb', 'ember-status.py', 'ember-device-config.py', 'ember-anydesk-id.py']:
     copy(name, '/opt/ember-provision/' + name)
+copy('ember-fleet-agent.py', '/opt/ember-provision/ember-fleet-agent.py')
 python_root = root / 'opt/ember-python'
 image_directory(python_root)
 with tarfile.open(payload / 'python-arm64.tar.gz') as archive:
@@ -171,16 +172,24 @@ for name in ['ember-display-watch.service', 'ember-display-watch.timer']:
     copy(name, '/etc/systemd/system/' + name)
 for name in ['ember-anydesk-id.service', 'ember-anydesk-id.timer']:
     copy(name, '/etc/systemd/system/' + name)
+for name in ['ember-fleet-agent.service', 'ember-fleet-agent.timer']:
+    copy(name, '/etc/systemd/system/' + name)
 timer_link = root / 'etc/systemd/system/timers.target.wants/ember-anydesk-id.timer'
 image_directory(timer_link.parent)
 timer_link.unlink(missing_ok=True)
 timer_link.symlink_to('../ember-anydesk-id.timer')
+fleet_timer = root / 'etc/systemd/system/timers.target.wants/ember-fleet-agent.timer'
+image_directory(fleet_timer.parent)
+fleet_timer.unlink(missing_ok=True)
+fleet_timer.symlink_to('../ember-fleet-agent.timer')
 copy('50-ember.conf', '/etc/lightdm/lightdm.conf.d/50-ember.conf')
 home = root / 'home/ember'
 image_directory(home)
 if (root / 'etc/skel').is_dir():
     shutil.copytree(root / 'etc/skel', home, dirs_exist_ok=True)
 write('/home/ember/.config/ember/device.json', json.dumps(source(settings), indent=2) + '\n', 0o600)
+if settings.get('fleet_device_key'):
+    write('/home/ember/.config/ember/fleet-key', settings['fleet_device_key'] + '\n', 0o600)
 # BAYMAX_DATA_DIR: memory, reminders and logs outside the release folders, so updates keep them.
 write('/home/ember/.config/ember/initial.env', 'GOOGLE_API_KEY=' + json.dumps(settings['gemini_api_key'])
       + '\nBAYMAX_CAMERA_DEVICE=\nBAYMAX_DATA_DIR=/home/ember/ember-deployment/data\n', 0o600)

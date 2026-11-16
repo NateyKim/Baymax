@@ -1,0 +1,15 @@
+[Unit]
+Description=Report Ember OP4 status to fleet console
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/home/ember/.config/ember/fleet-key
+
+[Service]
+Type=oneshot
+User=ember
+Environment=HOME=/home/ember
+Environment=XDG_RUNTIME_DIR=/run/user/1001
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus
+ExecStart=/opt/ember-python/python/bin/python3.12 /opt/ember-provision/ember-fleet-agent.py
+NoNewPrivileges=yes
+
