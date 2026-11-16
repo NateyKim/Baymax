@@ -1,8 +1,10 @@
 """Start an Ember-Setup hotspot and phone page when no saved Wi-Fi works.
 
-wlan0 has one radio, so the hotspot and the Wi-Fi client take turns: the board
-stays a normal ifupdown/wpa_supplicant client while it is online, and only
-after GRACE seconds offline does it switch wlan0 to a hostapd access point.
+After GRACE seconds offline the hotspot starts on a second interface (ap0, 2.4 GHz
+channel 6) while wlan0 keeps trying saved networks, so the page can save several
+networks without the hotspot closing. On ember-001 (aicwf_sdio) a 5 GHz DFS
+channel refused the AP, so ap0 never follows the client's channel. If ap0 cannot
+start, the hotspot falls back to taking turns with the client on wlan0.
 """
 import hashlib
 from html import escape
@@ -13,18 +15,23 @@ from pathlib import Path
 import re
 import socket
 import subprocess
+import sys
 import threading
 import time
 from urllib.parse import parse_qs
 
 IFACE = 'wlan0'
+AP_IFACE = 'ap0'
+AP_CHANNEL = 6
+IW = '/usr/sbin/iw'  # outside the ember user's PATH; the service runs as root anyway
 ADDRESS = '192.168.4.1'
 SUPPLICANT = Path('/etc/wpa_supplicant/wpa_supplicant.conf')
 SECRET = Path('/etc/ember/wifi-setup.json')
 RUN = Path('/run/ember-wifi-setup')
 GRACE = 90          # seconds offline before the hotspot starts
 JOIN_WAIT = 60      # seconds to wait for a saved network after leaving the hotspot
-RETRY_EVERY = 300   # hotspot minutes with no phone before retrying saved networks
+RETRY_EVERY = 300   # hotspot seconds with no phone before retrying saved networks
+STAY_OPEN = 600     # shared hotspot: seconds kept open after the last save, even once online
 
 
 def log(message):
@@ -53,9 +60,9 @@ def validate(ssid, password):
         raise ValueError('Wi-Fi passwords are 8-63 characters; leave it blank for an open network.')
 
 
-def network_block(ssid, password):
+def network_block(ssid, password, priority=200):
     """A wpa_supplicant entry storing a derived PSK, never the typed password."""
-    lines = ['network={', '    ssid=' + ssid.encode('utf-8').hex(), '    scan_ssid=1', '    priority=200']
+    lines = ['network={', '    ssid=' + ssid.encode('utf-8').hex(), '    scan_ssid=1', f'    priority={priority}']
     if password:
         psk = password.lower() if re.fullmatch(r'[0-9a-fA-F]{64}', password) else hashlib.pbkdf2_hmac(
             'sha1', password.encode('utf-8'), ssid.encode('utf-8'), 4096, 32).hex()
@@ -72,19 +79,57 @@ def block_ssid(block):
     return match[1] if match[1] is not None else bytes.fromhex(match[2]).decode('utf-8', 'replace')
 
 
-def with_network(text, ssid, password):
-    """Replace any saved entry for ssid and append the new one; other networks stay."""
-    kept = [block for block in re.findall(r'network=\{.*?\n\}\n?', text, re.S) if block_ssid(block) != ssid]
+def block_priority(block):
+    match = re.search(r'^\s*priority=(\d+)\s*$', block, re.M)
+    return int(match[1]) if match else 0
+
+
+def blocks(text):
+    return [b if b.endswith('\n') else b + '\n' for b in re.findall(r'network=\{.*?\n\}\n?', text, re.S)]
+
+
+def with_network(text, ssid, password, preferred=True):
+    """Replace any saved entry for ssid and append the new one; other networks stay.
+
+    preferred: try it before every other saved network; otherwise keep it as a backup."""
+    kept = [block for block in blocks(text) if block_ssid(block) != ssid]
     header = re.sub(r'network=\{.*?\n\}\n?', '', text, flags=re.S).rstrip('\n') + '\n'
-    return header + ''.join(block if block.endswith('\n') else block + '\n' for block in kept) + network_block(ssid, password)
+    others = [block_priority(block) for block in kept]
+    if not others:
+        priority = 200
+    else:
+        priority = max(others) + 1 if preferred else max(0, min(others) - 1)
+    return header + ''.join(kept) + network_block(ssid, password, priority)
 
 
-def save_network(ssid, password, path=SUPPLICANT):
-    validate(ssid, password)
+def with_preferred(text, ssid):
+    """Raise ssid above every other saved network; nothing else changes."""
+    found = [block for block in blocks(text) if block_ssid(block) == ssid]
+    if not found:
+        raise ValueError(f'"{ssid}" is not saved.')
+    top = max([block_priority(block) for block in blocks(text) if block_ssid(block) != ssid] or [199]) + 1
+    block = found[0]
+    if re.search(r'^\s*priority=\d+\s*$', block, re.M):
+        updated = re.sub(r'^(\s*)priority=\d+\s*$', rf'\g<1>priority={top}', block, count=1, flags=re.M)
+    else:
+        updated = block.replace('network={\n', f'network={{\n    priority={top}\n', 1)
+    return text.replace(block, updated, 1)
+
+
+def write_supplicant(text, path):
     temporary = path.with_name(path.name + '.ember-new')
-    temporary.write_text(with_network(path.read_text(), ssid, password))
+    temporary.write_text(text)
     temporary.chmod(0o600)
     temporary.replace(path)
+
+
+def save_network(ssid, password, path=SUPPLICANT, preferred=True):
+    validate(ssid, password)
+    write_supplicant(with_network(path.read_text(), ssid, password, preferred), path)
+
+
+def prefer_network(ssid, path=SUPPLICANT):
+    write_supplicant(with_preferred(path.read_text(), ssid), path)
 
 
 def scan_ssids(output):
@@ -100,31 +145,64 @@ def scan_ssids(output):
     return names
 
 
-def hostapd_config(ssid, password):
+def hostapd_config(ssid, password, iface=IFACE):
     if not 8 <= len(password) <= 63:
         raise ValueError('The setup hotspot password must be 8-63 characters.')
-    return '\n'.join([f'interface={IFACE}', 'driver=nl80211', f'ssid={ssid}', 'country_code=US',
-                      'hw_mode=g', 'channel=6', 'ieee80211n=1', 'wpa=2', 'wpa_key_mgmt=WPA-PSK',
+    return '\n'.join([f'interface={iface}', 'driver=nl80211', f'ssid={ssid}', 'country_code=US',
+                      'hw_mode=g', f'channel={AP_CHANNEL}', 'ieee80211n=1', 'wpa=2', 'wpa_key_mgmt=WPA-PSK',
                       'rsn_pairwise=CCMP', f'wpa_passphrase={password}', ''])
 
 
-def page(networks, message=''):
+def saved_ssids(path=None):
+    try:
+        text = (path or SUPPLICANT).read_text()
+    except OSError:
+        return []
+    ordered = sorted(blocks(text), key=block_priority, reverse=True)  # the order Ember tries them
+    return [name for name in map(block_ssid, ordered) if name]
+
+
+def connected_ssid():
+    match = re.search(r'^ssid=(.*)$', run('wpa_cli', '-i', IFACE, 'status', timeout=10).stdout, re.M)
+    return match[1] if match and online() else ''
+
+
+def page(networks, message='', shared=False):
     options = ''.join(f'<option>{escape(name)}</option>' for name in networks)
     notice = f'<p class="note">{escape(message)}</p>' if message else ''
+    names = saved_ssids()
+    rows = ''.join(
+        f'<li>{escape(name)}' + (' <i>(tried first)</i>' if index == 0 else
+        f'<form method="post" action="/prefer" class="inline"><input type="hidden" name="ssid" value="{escape(name)}">'
+        '<button class="small" type="submit">Use first</button></form>') + '</li>'
+        for index, name in enumerate(names)) or '<li>None yet</li>'
+    saved = f'<p>Saved networks, in the order Ember tries them:</p><ol>{rows}</ol>'
+    # While Ember is online a new network defaults to a backup so it cannot drop a working connection.
+    first = '' if shared and online() else ' checked'
+    if shared:
+        current = connected_ssid()
+        status = f'Connected to <b>{escape(current)}</b>.' if current else 'Not connected to Wi-Fi yet.'
+        footer = (f'<p class="note">{status}</p>{saved}'
+                  '<p>You can add several networks. Ember tries them while this hotspot stays on, '
+                  'and keeps the hotspot open for 10 minutes after your last change. '
+                  'Reload this page to see the connection status.</p>')
+    else:
+        footer = (f'{saved}<p>Ember will leave this hotspot to try the network. If <b>{escape(hotspot_name())}</b> comes back '
+                  'in about two minutes, the network could not be joined: reconnect and try again.</p>')
     return f'''<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Ember Wi-Fi setup</title>
 <style>body{{font-family:-apple-system,sans-serif;max-width:420px;margin:auto;padding:24px}}
 label{{display:block;margin-top:16px}}select,input,button{{width:100%;box-sizing:border-box;padding:12px;font-size:16px;margin-top:6px}}
-button{{background:#E03C31;color:#fff;border:0;border-radius:8px;margin-top:20px}}.note{{background:#fff3cd;padding:12px;border-radius:8px}}</style>
+button{{background:#E03C31;color:#fff;border:0;border-radius:8px;margin-top:20px}}.note{{background:#fff3cd;padding:12px;border-radius:8px}}
+.check input{{width:auto;margin-right:8px}}.inline{{display:inline}}button.small{{width:auto;padding:4px 10px;font-size:14px;margin:0 0 0 8px}}li{{margin:8px 0}}</style>
 </head><body><h1>Connect Ember to Wi-Fi</h1>{notice}
 <form method="post" action="/connect">
 <label>Network<select name="choice">{options}<option value="">Other (type below)</option></select></label>
 <label>Or type the network name<input name="ssid" autocapitalize="none" autocorrect="off"></label>
 <label>Password (blank for open Wi-Fi)<input name="password" type="password"></label>
-<button type="submit">Connect</button></form>
-<p>Ember will leave this hotspot to try the network. If <b>{escape(hotspot_name())}</b> comes back
-in about two minutes, the network could not be joined: reconnect and try again.
-An open network may still need a browser sign-in before it provides internet.</p></body></html>'''
+<label class="check"><input type="checkbox" name="first" value="1"{first}>Try this network first</label>
+<button type="submit">{'Save network' if shared else 'Connect'}</button></form>
+{footer}<p>An open network may still need a browser sign-in before it provides internet.</p></body></html>'''
 
 
 def hotspot_name():
@@ -136,6 +214,8 @@ class Portal:
         self.networks, self.message = [], ''
         self.submitted = threading.Event()
         self.server = None
+        self.shared = False      # True while ap0 runs beside the wlan0 client
+        self.last_save = None    # monotonic time of the last saved network
 
     def handler(portal):
         class Handler(BaseHTTPRequestHandler):
@@ -150,18 +230,37 @@ class Portal:
 
             def do_GET(self):
                 # Every URL gets the form, so phones open it as a sign-in page.
-                self.reply(200, page(portal.networks, portal.message))
+                self.reply(200, page(portal.networks, portal.message, portal.shared))
 
             def do_POST(self):
                 length = max(0, min(int(self.headers.get('Content-Length') or 0), 4096))
                 form = parse_qs(self.rfile.read(length).decode('utf-8', 'replace'))
                 ssid = (form.get('ssid', [''])[0] or form.get('choice', [''])[0]).strip()
+                if self.path == '/prefer':
+                    try:
+                        prefer_network(ssid)
+                    except (ValueError, OSError) as error:
+                        return self.reply(400, page(portal.networks, str(error), portal.shared))
+                    log(f'Wi-Fi network {ssid!r} moved first from the setup page')
+                    if portal.shared:
+                        run('wpa_cli', '-i', IFACE, 'reconfigure', timeout=15)
+                        portal.last_save = time.monotonic()
+                    portal.message = f'Ember now tries "{ssid}" first.'
+                    return self.reply(200, page(portal.networks, portal.message, portal.shared))
                 password = form.get('password', [''])[0]
+                preferred = form.get('first', [''])[0] == '1'
                 try:
-                    save_network(ssid, password)
+                    save_network(ssid, password, preferred=preferred)
                 except (ValueError, OSError) as error:
-                    return self.reply(400, page(portal.networks, str(error)))
-                log(f'Saved Wi-Fi network {ssid!r} from the setup page')
+                    return self.reply(400, page(portal.networks, str(error), portal.shared))
+                log(f'Saved Wi-Fi network {ssid!r} from the setup page (first={preferred})')
+                if portal.shared:
+                    # wlan0 picks up the new entry; ap0 and this page stay up for more networks.
+                    run('wpa_cli', '-i', IFACE, 'reconfigure', timeout=15)
+                    portal.last_save = time.monotonic()
+                    portal.message = (f'Saved "{ssid}"' + (' and Ember is trying it now.' if preferred else ' as a backup.')
+                                      + ' You can add another network.')
+                    return self.reply(200, page(portal.networks, portal.message, True))
                 portal.message = f'Could not join "{ssid}". Check the password and try again.'
                 portal.submitted.set()
                 self.reply(200, f'<!DOCTYPE html><meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -197,29 +296,65 @@ def join_saved(wait=JOIN_WAIT):
     return online()
 
 
-def start_hotspot(portal, secret):
-    run('ifdown', '--force', IFACE, timeout=30)
-    run('pkill', '-f', f'wpa_supplicant.*{IFACE}')
-    run('ip', 'addr', 'flush', 'dev', IFACE)
-    run('ip', 'link', 'set', IFACE, 'up')
-    portal.networks = scan_ssids(run('iw', 'dev', IFACE, 'scan', timeout=30).stdout)
-    run('ip', 'addr', 'add', ADDRESS + '/24', 'dev', IFACE)
+def launch_hotspot(portal, secret, iface):
+    run('ip', 'addr', 'add', ADDRESS + '/24', 'dev', iface)
     RUN.mkdir(mode=0o700, exist_ok=True)
     config = RUN / 'hostapd.conf'
-    config.write_text(hostapd_config(hotspot_name(), secret['password']))
+    config.write_text(hostapd_config(hotspot_name(), secret['password'], iface))
     config.chmod(0o600)
     processes = [
         subprocess.Popen(['hostapd', str(config)]),
         subprocess.Popen(['dnsmasq', '--keep-in-foreground', '--conf-file=/dev/null', '--no-resolv',
-                          f'--interface={IFACE}', '--bind-interfaces', '--dhcp-range=192.168.4.10,192.168.4.100,10m',
+                          f'--interface={iface}', '--bind-interfaces', '--dhcp-range=192.168.4.10,192.168.4.100,10m',
                           f'--address=/#/{ADDRESS}', '--dhcp-option=option:router,' + ADDRESS]),
     ]
     portal.serve()
-    log(f'Hotspot {hotspot_name()} started with {len(portal.networks)} nearby networks')
+    log(f'Hotspot {hotspot_name()} started on {iface} with {len(portal.networks)} nearby networks')
     return processes
 
 
-def stop_hotspot(portal, processes):
+def start_hotspot(portal, secret):
+    """Take-turns fallback: stop the wlan0 client and run the hotspot on wlan0."""
+    portal.shared = False
+    run('ifdown', '--force', IFACE, timeout=30)
+    run('pkill', '-f', f'wpa_supplicant.*{IFACE}')
+    run('ip', 'addr', 'flush', 'dev', IFACE)
+    run('ip', 'link', 'set', IFACE, 'up')
+    portal.networks = scan_ssids(run(IW, 'dev', IFACE, 'scan', timeout=30).stdout)
+    return launch_hotspot(portal, secret, IFACE)
+
+
+def ap_mac(client_mac):
+    """A locally administered MAC beside wlan0's, so ap0 and wlan0 differ."""
+    return '02' + client_mac.strip()[2:]
+
+
+def start_shared_hotspot(portal, secret):
+    """Run the hotspot on ap0 while wlan0 stays a client. Returns None if the driver refuses."""
+    run(IW, 'dev', AP_IFACE, 'del')
+    added = run(IW, 'dev', IFACE, 'interface', 'add', AP_IFACE, 'type', '__ap')
+    if added.returncode:
+        log(f'Could not add {AP_IFACE}: {added.stderr.strip()}')
+        return None
+    try:
+        run('ip', 'link', 'set', AP_IFACE, 'address', ap_mac(Path(f'/sys/class/net/{IFACE}/address').read_text()))
+    except OSError:
+        pass
+    run('ip', 'link', 'set', AP_IFACE, 'up')
+    # wpa_supplicant may hold wlan0's scanner; its cached results are a fine fallback.
+    output = run(IW, 'dev', IFACE, 'scan', timeout=30).stdout or run(IW, 'dev', IFACE, 'scan', 'dump').stdout
+    portal.networks = scan_ssids(output)
+    portal.shared = True
+    processes = launch_hotspot(portal, secret, AP_IFACE)
+    time.sleep(3)
+    if processes[0].poll() is not None:
+        log('hostapd refused the shared hotspot')
+        stop_hotspot(portal, processes, AP_IFACE)
+        return None
+    return processes
+
+
+def stop_hotspot(portal, processes, iface=IFACE):
     portal.close()
     for process in processes:
         process.terminate()
@@ -228,20 +363,46 @@ def stop_hotspot(portal, processes):
             process.wait(10)
         except subprocess.TimeoutExpired:
             process.kill()
-    run('ip', 'addr', 'flush', 'dev', IFACE)
+    if iface == AP_IFACE:
+        run(IW, 'dev', AP_IFACE, 'del')
+        portal.shared = False
+    else:
+        run('ip', 'addr', 'flush', 'dev', iface)
     log('Hotspot stopped')
 
 
 def phones_connected():
-    return bool(run('iw', 'dev', IFACE, 'station', 'dump').stdout.strip())
+    return bool(run(IW, 'dev', IFACE, 'station', 'dump').stdout.strip())
 
 
 def has_saved_network():
     return 'network={' in SUPPLICANT.read_text()
 
 
+def shared_until_online(portal, processes):
+    """Keep the shared hotspot up until online and STAY_OPEN has passed since the last save.
+
+    Returns False if hostapd/dnsmasq exit, so the caller can fall back."""
+    while True:
+        time.sleep(10)
+        if any(process.poll() is not None for process in processes):
+            return False
+        recent = portal.last_save is not None and time.monotonic() - portal.last_save < STAY_OPEN
+        if online() and not recent:
+            return True
+
+
 def setup_until_online(secret):
     portal = Portal()
+    processes = start_shared_hotspot(portal, secret)
+    if processes is not None:
+        closed_online = shared_until_online(portal, processes)
+        stop_hotspot(portal, processes, AP_IFACE)
+        if closed_online:
+            log('Online; setup hotspot closed')
+            return
+        log('Shared hotspot exited; falling back to take-turns mode')
+    portal.message = ''
     while True:
         portal.submitted.clear()
         processes = start_hotspot(portal, secret)
@@ -264,7 +425,19 @@ def setup_until_online(secret):
 
 def main():
     secret = json.loads(SECRET.read_text())
-    client_mode()  # recover wlan0 if a previous run stopped mid-hotspot
+    if sys.argv[1:] == ['--now']:
+        # Manual "add networks" mode: open the shared hotspot now without touching the client.
+        # Exits when it closes; never falls back to take-turns while online.
+        portal = Portal()
+        processes = start_shared_hotspot(portal, secret)
+        if processes is None:
+            raise SystemExit('The shared hotspot could not start on this board.')
+        portal.last_save = time.monotonic()
+        shared_until_online(portal, processes)
+        stop_hotspot(portal, processes, AP_IFACE)
+        return
+    run(IW, 'dev', AP_IFACE, 'del')  # recover if a previous run stopped mid-hotspot
+    client_mode()
     offline_since = None
     while True:
         if online():

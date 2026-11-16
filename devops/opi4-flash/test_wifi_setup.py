@@ -36,6 +36,25 @@ class WifiSetupTests(unittest.TestCase):
         self.assertEqual(text.count('network={'), 2)
         self.assertEqual(module.with_network(text, 'Home', 'new-password'), text)
 
+    def test_new_network_can_be_first_or_backup(self):
+        first = module.with_network(SAVED, 'Cafe', '', preferred=True)
+        self.assertIn('priority=101', first)  # above natey's 100
+        backup = module.with_network(SAVED, 'Cafe', '', preferred=False)
+        self.assertRegex(backup, r'ssid=43616665\n    scan_ssid=1\n    priority=0\n')
+        self.assertIn('priority=200', module.with_network('country=US\n', 'Cafe', ''))
+
+    def test_prefer_moves_one_network_first_and_lists_in_try_order(self):
+        text = module.with_preferred(SAVED, 'Home')  # Home had no priority line
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'wpa_supplicant.conf'
+            path.write_text(text)
+            self.assertEqual(module.saved_ssids(path), ['Home', 'natey'])
+            module.prefer_network('natey', path)
+            self.assertEqual(module.saved_ssids(path), ['natey', 'Home'])
+            self.assertIn('psk="old-password"', path.read_text())  # credentials untouched
+        with self.assertRaises(ValueError):
+            module.with_preferred(SAVED, 'Missing')
+
     def test_open_network_and_validation(self):
         self.assertIn('key_mgmt=NONE', module.network_block('Cafe', ''))
         for ssid, password in [('', 'password1'), ('x' * 33, 'password1'), ('Home', 'short'),
@@ -88,11 +107,59 @@ class WifiSetupTests(unittest.TestCase):
             portal_runs.append(secret)
             portal.submitted.set()
             return []
-        with patch.object(module, 'start_hotspot', side_effect=start), \
+        with patch.object(module, 'start_shared_hotspot', return_value=None), \
+             patch.object(module, 'start_hotspot', side_effect=start), \
              patch.object(module, 'stop_hotspot'), patch.object(module.time, 'sleep'), \
              patch.object(module, 'join_saved', side_effect=[False, True]):
             module.setup_until_online({'password': 'abcd2345ef'})
         self.assertEqual(len(portal_runs), 2)
+
+    def test_shared_hotspot_closes_once_online_without_take_turns(self):
+        alive = unittest.mock.Mock(**{'poll.return_value': None})
+        with patch.object(module, 'start_shared_hotspot', return_value=[alive]), \
+             patch.object(module, 'start_hotspot') as take_turns, \
+             patch.object(module, 'stop_hotspot') as stop, patch.object(module.time, 'sleep'), \
+             patch.object(module, 'online', side_effect=[False, False, True]):
+            module.setup_until_online({'password': 'abcd2345ef'})
+        take_turns.assert_not_called()
+        self.assertEqual(stop.call_args.args[2], 'ap0')
+
+    def test_shared_hotspot_stays_open_after_a_recent_save(self):
+        portal = module.Portal()
+        alive = unittest.mock.Mock(**{'poll.return_value': None})
+        clock = iter([100.0, 100.0 + module.STAY_OPEN])
+        portal.last_save = 50.0
+        with patch.object(module.time, 'sleep'), patch.object(module, 'online', return_value=True), \
+             patch.object(module.time, 'monotonic', side_effect=lambda: next(clock)):
+            self.assertTrue(module.shared_until_online(portal, [alive]))
+        self.assertRaises(StopIteration, next, clock)  # first check (recent save) kept it open
+
+    def test_shared_hotspot_exit_falls_back_to_take_turns(self):
+        dead = unittest.mock.Mock(**{'poll.return_value': 1})
+        with patch.object(module, 'start_shared_hotspot', return_value=[dead]), \
+             patch.object(module, 'start_hotspot', side_effect=lambda portal, secret: portal.submitted.set() or []) as take_turns, \
+             patch.object(module, 'stop_hotspot'), patch.object(module.time, 'sleep'), \
+             patch.object(module, 'join_saved', return_value=True):
+            module.setup_until_online({'password': 'abcd2345ef'})
+        take_turns.assert_called_once()
+
+    def test_shared_ap_uses_its_own_interface_and_mac(self):
+        self.assertIn('interface=ap0', module.hostapd_config('Ember-Setup-1', 'abcd2345ef', 'ap0'))
+        self.assertIn('channel=6', module.hostapd_config('Ember-Setup-1', 'abcd2345ef', 'ap0'))
+        self.assertEqual(module.ap_mac('a8:49:ba:19:2b:be\n'), '02:49:ba:19:2b:be')
+
+    def test_shared_page_lists_saved_networks_and_offers_more(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'wpa_supplicant.conf'
+            path.write_text(SAVED)
+            with patch.object(module, 'SUPPLICANT', path), patch.object(module, 'connected_ssid', return_value=''), \
+                 patch.object(module, 'online', return_value=True):
+                html = module.page(['Cafe'], '', shared=True)
+        self.assertIn('<li>natey <i>(tried first)</i></li>', html)
+        self.assertIn('name="ssid" value="Home"', html)  # Use first button
+        self.assertNotIn('value="1" checked', html)  # online: new network defaults to backup
+        self.assertIn('add several networks', html)
+        self.assertNotIn('leave this hotspot', html)
 
 
 if __name__ == '__main__':

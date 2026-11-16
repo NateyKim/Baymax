@@ -188,8 +188,14 @@ Windows and Mac still needs a fresh-image hardware test before fleet use.
    `device-access.private.json` to appear. Join it from a phone or laptop with
    the setup password in that file, then open `http://192.168.4.1/`. Pick the
    Wi-Fi network and enter its password, or leave the field blank for open Wi-Fi.
-   The setup hotspot closes while the board tries the network; if joining fails,
-   it returns so you can retry. No keyboard, monitor or internet is needed to
+   The hotspot runs on a second interface (`ap0`, 2.4 GHz channel 6) while the
+   board keeps trying saved networks, so you can save several networks on one
+   visit; the page lists them and shows the current connection. It closes once
+   the board is online and 10 minutes have passed since the last save. If the
+   driver refuses `ap0`, the older behavior is used: the hotspot closes while the
+   board tries the network and returns if joining fails. To add networks while
+   Ember is already online, run `sudo python3 /usr/local/lib/ember/ember_wifi_setup.py --now`
+   over SSH; the hotspot stays open for 10 minutes. No keyboard, monitor or internet is needed to
    reach this setup page. An open network may still require a captive-portal
    sign-in for internet access. To connect Ember to an iPhone hotspot, keep the
    iPhone hotspot on and open the Ember setup page from a second phone or laptop.
