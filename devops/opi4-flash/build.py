@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import shutil
 import subprocess
@@ -40,11 +41,13 @@ def asset(name, spec, cache):
 def generate_credentials(access_password=None, linux_password=None, anydesk_password=None, hostname=None):
     # Explicit per-service passwords override the generated defaults.
     hostname = hostname or 'ember-' + secrets.token_hex(4)
+    shared = access_password or (linux_password if linux_password and linux_password == anydesk_password else None)
+    setup_password = shared if shared and re.fullmatch(r'[\x20-\x7e]{8,63}', shared) else secrets.token_hex(8)
     return {'hostname': hostname, 'username': 'ember',
             'linux_password': linux_password or access_password or secrets.token_urlsafe(24),
             'anydesk_password': anydesk_password or access_password or secrets.token_urlsafe(24),
             'setup_wifi_ssid': 'Ember-Setup-' + hostname.removeprefix('ember-')[-8:].upper(),
-            'setup_wifi_password': secrets.token_hex(8)}
+            'setup_wifi_password': setup_password}
 
 
 def private_json(path, value):

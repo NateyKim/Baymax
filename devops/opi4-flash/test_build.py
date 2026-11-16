@@ -26,6 +26,9 @@ class BuildTests(unittest.TestCase):
     def test_fixed_access_password_sets_both_logins(self):
         fixed = builder.generate_credentials('longenough')
         self.assertEqual((fixed['linux_password'], fixed['anydesk_password']), ('longenough', 'longenough'))
+        self.assertEqual(fixed['setup_wifi_password'], 'longenough')
+        self.assertEqual(builder.generate_credentials(linux_password='meow1234',
+                         anydesk_password='meow1234')['setup_wifi_password'], 'meow1234')
 
     def test_separate_passwords_override_generation_independently(self):
         fixed = builder.generate_credentials(linux_password='ssh-secret-123',

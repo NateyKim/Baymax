@@ -56,7 +56,9 @@ Every build generates a distinct hostname unless you enter a board name such as
 unique password for the `Ember-Setup-...` Wi-Fi hotspot. The app
 can set `"linux_password"` and `"anydesk_password"`
 individually (8–64 characters, no spaces); leaving either blank generates a
-random one. The older shared `"access_password"` setting still works. AnyDesk
+random one. When you explicitly set the same printable password for both, the
+setup hotspot uses it too; otherwise its password is random. The older shared
+`"access_password"` setting still works. AnyDesk
 is reachable by its ID from any network, so use a strong password. No person's passwords, SSH identity or Wi-Fi defaults are included.
 The outputs contain secrets: keep the settings, generated access file and image
 private. They are ignored by Git. Generate a separate image for each board.
