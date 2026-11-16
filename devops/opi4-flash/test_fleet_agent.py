@@ -26,9 +26,12 @@ class FleetAgentTests(unittest.TestCase):
             current.symlink_to(release, target_is_directory=True)
             anydesk = root / 'anydesk-id'
             anydesk.write_text('123456789\n')
+            uptime = root / 'uptime'
+            uptime.write_text('1234.5 0\n')
             with patch.object(agent, 'CONFIG', config), patch.object(agent, 'CURRENT', current), \
                  patch.object(agent, 'ANYDESK_ID', anydesk), \
-                 patch.object(agent.os, 'statvfs', return_value=SimpleNamespace(f_bavail=100, f_blocks=200, f_frsize=4096)), \
+                 patch.object(agent, 'UPTIME', uptime), \
+                 patch.object(agent.os, 'statvfs', create=True, return_value=SimpleNamespace(f_bavail=100, f_blocks=200, f_frsize=4096)), \
                  patch.object(agent.subprocess, 'run') as service:
                 service.return_value.stdout = 'active\n'
                 result = agent.report()

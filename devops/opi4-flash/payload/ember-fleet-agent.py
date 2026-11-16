@@ -13,6 +13,7 @@ KEY = Path('/home/ember/.config/ember/fleet-key')
 CONFIG = Path('/home/ember/.config/ember/device.json')
 CURRENT = Path('/home/ember/ember-deployment/current')
 ANYDESK_ID = Path('/var/lib/ember/anydesk-id')
+UPTIME = Path('/proc/uptime')
 ENDPOINT = 'https://tadashirobotics.com/api/device/checkin'
 
 
@@ -31,7 +32,7 @@ def report():
         'anydesk_id': desk_id if re.fullmatch(r'[0-9]{5,20}', desk_id) else None,
         'ember': 'running' if state.stdout.strip() == 'active' else ('starting' if not CURRENT.exists() else 'stopped'),
         'disk': {'free': stat.f_bavail * stat.f_frsize, 'total': stat.f_blocks * stat.f_frsize},
-        'uptime': int(float(Path('/proc/uptime').read_text().split()[0])),
+        'uptime': int(float(UPTIME.read_text().split()[0])),
     }
 
 
