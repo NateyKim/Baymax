@@ -62,7 +62,7 @@ def validate(value):
         raise ValueError('hostname must use lowercase letters, digits and hyphens (1-63 characters).')
     auth_key = value.get('tailscale_auth_key', '')
     if not isinstance(auth_key, str) or (auth_key and
-            (len(auth_key) > 256 or not re.fullmatch(r'tskey-auth-[A-Za-z0-9_-]+', auth_key))):
+            (not auth_key.startswith('tskey-auth-') or len(auth_key) > 256 or any(c.isspace() for c in auth_key))):
         raise ValueError('Tailscale key must be a one-time tskey-auth key, or blank.')
     if 'branch' in value and not valid_branch(value['branch']):
         raise ValueError('branch must be a valid Git branch name, such as release.')
