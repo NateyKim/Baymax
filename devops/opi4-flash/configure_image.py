@@ -32,25 +32,28 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--settings', type=Path, default=Path(__file__).parent / 'settings.private.json')
     args = parser.parse_args()
-    old = load(args.settings) if args.settings.exists() else {'branch': 'deploy', 'wifi': {'ssid': '', 'password': ''}, 'gemini_api_key': ''}
+    old = load(args.settings) if args.settings.exists() else {'branch': 'deploy', 'wifi_networks': [], 'gemini_api_key': ''}
     if 'pr' in old:
         print(f'These settings followed pull request #{old["pr"]}; images now follow a branch of {REPOSITORY}.')
     current = old.get('branch', 'deploy')
     branch = input(f'Branch to follow [{current}]: ').strip() or current
-    primary_wifi = wifi_networks(old)[0]
-    ssid = input(f'Wi-Fi name [{primary_wifi["ssid"]}]: ').strip() or primary_wifi['ssid']
-    password = getpass.getpass('Wi-Fi password (Enter keeps existing; - means open Wi-Fi): ')
-    password = '' if password == '-' else password or (primary_wifi['password'] if ssid == primary_wifi['ssid'] else '')
+    previous = wifi_networks(old)
+    primary_wifi = previous[0] if previous else {'ssid': '', 'password': ''}
+    choice = input(f'Wi-Fi name [{primary_wifi["ssid"]}; - for phone setup]: ').strip()
+    ssid = '' if choice == '-' else choice or primary_wifi['ssid']
+    if ssid:
+        password = getpass.getpass('Wi-Fi password (Enter keeps existing; - means open Wi-Fi): ')
+        password = '' if password == '-' else password or (primary_wifi['password'] if ssid == primary_wifi['ssid'] else '')
     key = getpass.getpass('Gemini key (Enter keeps existing; - leaves manual Setup): ')
     key = '' if key == '-' else key or old['gemini_api_key']
     zone = input(f'Time zone, e.g. America/New_York [{timezone(old)}]: ').strip() or timezone(old)
     while not valid_timezone(zone):
         zone = input(f'Not a time zone name. Time zone [{DEFAULT_TIMEZONE}]: ').strip() or DEFAULT_TIMEZONE
     kept = {name: old[name] for name in ('access_password', 'linux_password', 'anydesk_password') if name in old}
-    networks = [{'ssid': ssid, 'password': password}] + wifi_networks(old)[1:]
+    networks = ([{'ssid': ssid, 'password': password}] + previous[1:]) if ssid else []
     save_private(args.settings, {'branch': branch, 'wifi_networks': networks,
                                  'gemini_api_key': key, 'timezone': zone} | kept)
-    print(f'Saved branch {branch!r}, Wi-Fi {ssid!r}, Gemini key {"configured" if key else "blank"} '
+    print(f'Saved branch {branch!r}, Wi-Fi {ssid or "phone setup"!r}, Gemini key {"configured" if key else "blank"} '
           f'and time zone {zone}. Rebuild the image to apply.')
 
 

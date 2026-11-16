@@ -102,6 +102,14 @@ class ImageSettingsTests(unittest.TestCase):
         self.assertIn('key_mgmt=NONE', text)
         self.assertNotIn('psk=', text)
 
+    def test_no_preloaded_wifi_uses_phone_setup(self):
+        settings = {'branch': 'deploy', 'wifi_networks': [], 'gemini_api_key': ''}
+        self.assertEqual(validate(settings), settings)
+        self.assertNotIn('network={', supplicant([]))
+        boot_wifi = dietpi_wifi("aWIFI_SSID[0]='old'\naWIFI_KEY[0]='old'\n", [])
+        self.assertIn("aWIFI_SSID[0]=''", boot_wifi)
+        self.assertIn("aWIFI_KEY[0]=''", boot_wifi)
+
     def test_multiple_wifi_networks_include_open_and_secure_first_boot_slots(self):
         networks = [{'ssid': 'natey', 'password': 'hotspot123'},
                     {'ssid': 'Coffee', 'password': ''},

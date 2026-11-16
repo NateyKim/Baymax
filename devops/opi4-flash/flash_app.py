@@ -31,7 +31,7 @@ class FlashApp:
         self.hostname = tk.StringVar()
         desktop = Path.home() / 'Desktop'
         self.output_parent = tk.StringVar(value=str(desktop if desktop.is_dir() else Path.home()))
-        self.status = tk.StringVar(value='Add at least one Wi-Fi network, then build an image.')
+        self.status = tk.StringVar(value='Leave Wi-Fi empty for phone setup, or add saved networks.')
         self._layout()
         self._refresh_sources()
         root.after(100, self._poll)
@@ -54,6 +54,8 @@ class FlashApp:
         wifi.columnconfigure(0, weight=1)
         self.wifi_list = tk.Listbox(wifi, height=4, exportselection=False)
         self.wifi_list.grid(row=0, column=0, rowspan=5, sticky='ew', padx=(0, 8))
+        ttk.Label(wifi, text='Leave empty to set up Wi-Fi from a phone after first boot.').grid(
+            row=5, column=0, columnspan=2, sticky='w', pady=(6, 0))
         for row, (label, action) in enumerate((
                 ('Add Wi-Fi', lambda: self._edit_wifi()),
                 ('Edit', lambda: self._edit_wifi(self._selected_wifi())),
@@ -251,7 +253,7 @@ class FlashApp:
                     self.source_combo.configure(values=list(self.source_options))
                     self.source.set(current if current in self.source_options else 'Stable · deploy')
                     if not self.running and not self.last_output:
-                        self.status.set(f'{len(value)} open Orange Pi PR(s) found. Add Wi-Fi to build.')
+                        self.status.set(f'{len(value)} open Orange Pi PR(s) found. Wi-Fi is optional.')
                 elif kind == 'sources_error':
                     if not self.running and not self.last_output:
                         self.status.set('Could not load PRs; stable deploy remains available.')
@@ -268,8 +270,9 @@ class FlashApp:
                         self.last_output, manifest = value
                         self.open_button.configure(state='normal')
                         self.status.set(f"Ready: {manifest['hostname']} · {self.last_output}")
-                        messagebox.showinfo('Image ready', 'The image checksum passed. Open the folder '
-                                            'and write ember-opi4.img to the microSD card with an image writer.')
+                        messagebox.showinfo('Image ready', 'The image checksum passed. Open the folder and write '
+                                            'ember-opi4.img to the microSD card. The private access file has the '
+                                            'setup hotspot name and password for headless Wi-Fi setup.')
                     else:
                         self.status.set('Build stopped. See the log below.')
                         messagebox.showerror('Image build stopped', value)

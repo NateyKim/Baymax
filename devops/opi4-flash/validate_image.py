@@ -37,6 +37,13 @@ for name in ['etc/ember/credentials.json', 'boot/dietpi.txt', 'boot/dietpi-wifi.
     assert stat.S_IMODE((root / name).stat().st_mode) == 0o600, name
 credentials = json.loads((root / 'etc/ember/credentials.json').read_text())
 assert len(credentials['anydesk_password']) >= 8
+setup_secret = root / 'etc/ember/wifi-setup.json'
+assert json.loads(setup_secret.read_text()) == {'password': credentials['setup_wifi_password']}
+assert stat.S_IMODE(setup_secret.stat().st_mode) == 0o600
+assert credentials['setup_wifi_ssid'] == 'Ember-Setup-' + credentials['hostname'].removeprefix('ember-')[-8:].upper()
+assert (root / 'usr/local/lib/ember/ember_wifi_setup.py').is_file()
+assert (root / 'etc/systemd/system/multi-user.target.wants/ember-wifi-setup.service').is_symlink()
+assert os.readlink(root / 'etc/systemd/system/hostapd.service') == '/dev/null'
 for name in ('linux_password', 'anydesk_password'):
     if name in settings:
         assert credentials[name] == settings[name]

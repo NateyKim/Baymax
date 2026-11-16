@@ -18,10 +18,7 @@ Run the private configurator or copy `settings.example.json` to
 ```json
 {
   "branch": "deploy",
-  "wifi_networks": [
-    {"ssid": "YOUR HOTSPOT", "password": "hotspot-password"},
-    {"ssid": "OPEN GUEST WIFI", "password": ""}
-  ],
+  "wifi_networks": [],
   "gemini_api_key": "",
   "timezone": "America/Los_Angeles"
 }
@@ -32,9 +29,10 @@ Run the private configurator or copy `settings.example.json` to
   Settings may use `"branch": "deploy"` or `"pr": NUMBER`. Startup fetches the
   selected ref and bundles it as the first-install fallback if Git is unavailable.
   Older branch and PR settings remain supported.
-- **Wi-Fi:** add up to five SSIDs. Each has its own password;
-  blank means an open network. The image writes all five DietPi first-boot slots
-  and the board's `wpa_supplicant` file. The old single `"wifi"` setting still works.
+- **Wi-Fi:** leave the list empty to test headless setup from a phone, or preload
+  up to five SSIDs. Each has its own password; blank means an open network.
+  The image writes DietPi first-boot slots and the board's `wpa_supplicant` file.
+  The old single `"wifi"` setting still works.
   WPA passwords must be 8–63 UTF-8 bytes or a 64-digit hex PSK.
   Captive-portal sign-in is not automated. Use a reachable private network for
   SSH; public apartment/guest networks may isolate clients.
@@ -54,7 +52,8 @@ Run the private configurator or copy `settings.example.json` to
   **Restart Ember**; `timedatectl` shows the current one.
 
 Every build generates a distinct hostname unless you enter a board name such as
-`ember-002`. It also generates separate random Linux/AnyDesk passwords. The app
+`ember-002`. It also generates separate random Linux/AnyDesk passwords and a
+unique password for the `Ember-Setup-...` Wi-Fi hotspot. The app
 can set `"linux_password"` and `"anydesk_password"`
 individually (8–64 characters, no spaces); leaving either blank generates a
 random one. The older shared `"access_password"` setting still works. AnyDesk
@@ -141,7 +140,7 @@ working image each occupy about 7 GiB, the copied image another 7 GiB, and
 Ubuntu, downloads and temporary files need additional space. The first image
 can take an hour or more.
 
-Add the board's Wi-Fi networks, choose stable `deploy` or an open Orange Pi PR,
+Leave Wi-Fi empty for headless phone setup, or preload networks. Choose stable `deploy` or an open Orange Pi PR,
 set the board's time zone, and optionally enter a Gemini key and separate
 SSH/sudo and AnyDesk passwords. Choose an output folder, then click **Build image**. The
 app transfers these private settings into the local VM, builds one image, copies
@@ -168,6 +167,14 @@ Windows and Mac still needs a fresh-image hardware test before fleet use.
 2. Power the Orange Pi off, insert the card, connect the usual USB microphone,
    speaker and optional camera, make the chosen Wi-Fi available, and power it on
    with a suitable board power supply. Eye hardware is optional and unverified.
+   For a blank-Wi-Fi image, wait for the `Ember-Setup-...` hotspot named in
+   `device-access.private.json` to appear. Join it from a phone or laptop with
+   the setup password in that file, then open `http://192.168.4.1/`. Pick the
+   Wi-Fi network and enter its password, or leave the field blank for open Wi-Fi.
+   The setup hotspot closes while the board tries the network; if joining fails,
+   it returns so you can retry. No keyboard, monitor or internet is needed to
+   reach this setup page. An open network may still require a captive-portal
+   sign-in for internet access.
 3. From a device on the same reachable network, open
    `http://HOSTNAME.local:8765/`, using the generated hostname in the private access
    file. If mDNS does not resolve, use the board's IP from the router/hotspot list.

@@ -125,6 +125,7 @@ if not re.search(r'^source(?:-directory)?\s+/etc/network/interfaces.d', interfac
     write('/etc/network/interfaces', interfaces + '\nsource /etc/network/interfaces.d/*\n')
 write('/etc/systemd/journald.conf.d/ember.conf', '[Journal]\nStorage=persistent\nSystemMaxUse=128M\n')
 copy('credentials.json', '/etc/ember/credentials.json', 0o600)
+write('/etc/ember/wifi-setup.json', json.dumps({'password': credentials['setup_wifi_password']}) + '\n', 0o600)
 for name in ['ember.bundle', 'bundle-source.json', 'anydesk-arm64.deb', 'ember-status.py', 'ember-device-config.py', 'ember-anydesk-id.py']:
     copy(name, '/opt/ember-provision/' + name)
 python_root = root / 'opt/ember-python'
@@ -140,19 +141,24 @@ for parent, directories, files in os.walk(python_root):
         if not path.is_symlink():
             os.chmod(path, path.stat().st_mode & ~0o022)
 copy('ember-provision', '/usr/local/sbin/ember-provision', 0o755)
+copy('ember-wifi-setup.py', '/usr/local/lib/ember/ember_wifi_setup.py')
 copy('ember-hardware.py', '/opt/ember-provision/ember-hardware.py')
 copy('system-packages.txt', '/opt/ember-provision/system-packages.txt')
 for wheel in sorted(payload.glob('*.whl')):
     copy(wheel.name, '/opt/ember-provision/wheels/' + wheel.name)
 for name in ['ember-update', 'ember-run', 'ember-status', 'ember-device-settings', 'ember-wifi']:
     copy(name, '/usr/local/bin/' + name, 0o755)
-for name in ['ember-provision.service', 'ember-update.service', 'ember-status.service']:
+for name in ['ember-provision.service', 'ember-update.service', 'ember-status.service',
+             'ember-wifi-setup.service']:
     copy(name, '/etc/systemd/system/' + name)
     # Dependency installation is guarded by provisioned marker.
     link = root / 'etc/systemd/system/multi-user.target.wants' / name
     image_directory(link.parent)
     link.unlink(missing_ok=True)
     link.symlink_to('../' + name)
+hostapd_service = root / 'etc/systemd/system/hostapd.service'
+hostapd_service.unlink(missing_ok=True)
+hostapd_service.symlink_to('/dev/null')  # The setup service starts hostapd only when needed.
 copy('20-ember-virtual.conf', '/etc/X11/ember-virtual.conf')
 virtual_link = root / 'etc/X11/xorg.conf.d/20-ember-virtual.conf'
 image_directory(virtual_link.parent)

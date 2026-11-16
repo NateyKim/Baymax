@@ -48,7 +48,7 @@ def validate(value):
     wifi_field = set(value) & {'wifi', 'wifi_networks'} if isinstance(value, dict) else set()
     if (len(follow) != 1 or len(wifi_field) != 1 or
             set(value) - OPTIONAL - follow - wifi_field != {'gemini_api_key'}):
-        raise ValueError('Choose one branch or PR, one or more Wi-Fi networks, and gemini_api_key.')
+        raise ValueError('Choose one branch or PR, Wi-Fi networks (or none for phone setup), and gemini_api_key.')
     if 'access_password' in value and ({'linux_password', 'anydesk_password'} & set(value)):
         raise ValueError('Use either the legacy shared access_password or separate passwords.')
     for name in ('access_password', 'linux_password', 'anydesk_password'):
@@ -66,8 +66,8 @@ def validate(value):
     if 'pr' in value and (type(value['pr']) is not int or value['pr'] < 1):
         raise ValueError('pr must be a positive pull-request number.')
     networks = wifi_networks(value)
-    if not isinstance(networks, list) or not 1 <= len(networks) <= MAX_WIFI_NETWORKS:
-        raise ValueError(f'Add 1-{MAX_WIFI_NETWORKS} Wi-Fi networks.')
+    if not isinstance(networks, list) or not 0 <= len(networks) <= MAX_WIFI_NETWORKS:
+        raise ValueError(f'Add up to {MAX_WIFI_NETWORKS} Wi-Fi networks, or leave blank for phone setup.')
     names = set()
     for wifi in networks:
         if not isinstance(wifi, dict) or set(wifi) != {'ssid', 'password'}:

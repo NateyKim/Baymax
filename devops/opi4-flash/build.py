@@ -39,9 +39,12 @@ def asset(name, spec, cache):
 
 def generate_credentials(access_password=None, linux_password=None, anydesk_password=None, hostname=None):
     # Explicit per-service passwords override the generated defaults.
-    return {'hostname': hostname or 'ember-' + secrets.token_hex(4), 'username': 'ember',
+    hostname = hostname or 'ember-' + secrets.token_hex(4)
+    return {'hostname': hostname, 'username': 'ember',
             'linux_password': linux_password or access_password or secrets.token_urlsafe(24),
-            'anydesk_password': anydesk_password or access_password or secrets.token_urlsafe(24)}
+            'anydesk_password': anydesk_password or access_password or secrets.token_urlsafe(24),
+            'setup_wifi_ssid': 'Ember-Setup-' + hostname.removeprefix('ember-')[-8:].upper(),
+            'setup_wifi_password': secrets.token_hex(8)}
 
 
 def private_json(path, value):
@@ -103,7 +106,8 @@ def main():
         private_json(output / 'ready-image.json', {
             'image': image.name, 'length': image.stat().st_size, 'sha256': digest(image),
             'repository': selected['repository'], 'ref': selected['branch'], 'commit': commit,
-            'hostname': credentials['hostname'], 'wifi_ssid': wifi_networks(settings)[0]['ssid'],
+            'hostname': credentials['hostname'],
+            'wifi_ssid': wifi_networks(settings)[0]['ssid'] if wifi_networks(settings) else None,
             'wifi_ssids': [wifi['ssid'] for wifi in wifi_networks(settings)],
             'gemini_key_configured': bool(settings['gemini_api_key'])})
         print('Ready:', image, flush=True)

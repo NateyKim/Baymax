@@ -16,6 +16,8 @@ class BuildTests(unittest.TestCase):
         self.assertNotEqual(first['hostname'], second['hostname'])
         self.assertNotEqual(first['linux_password'], second['linux_password'])
         self.assertNotEqual(first['linux_password'], first['anydesk_password'])
+        self.assertNotEqual(first['setup_wifi_password'], second['setup_wifi_password'])
+        self.assertEqual(builder.generate_credentials(hostname='ember-003')['setup_wifi_ssid'], 'Ember-Setup-003')
         self.assertGreaterEqual(len(first['anydesk_password']), 24)
 
     def test_named_board_keeps_its_hostname(self):

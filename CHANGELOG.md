@@ -1,5 +1,8 @@
 # MVP (unreleased)
 
+- Add a password-protected `Ember-Setup` hotspot and phone page to Orange Pi
+  images, allowing first boot with no preloaded Wi-Fi and setup of secured or
+  open networks.
 - Add an Ember Wi-Fi command and settings entry that saves secured or open
   networks alongside existing profiles and makes priority explicit.
 - Repair AnyDesk user-directory ownership after first-boot password setup so
