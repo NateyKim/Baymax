@@ -2,6 +2,7 @@
 set -euo pipefail
 conf=/etc/X11/xorg.conf.d/20-ember-virtual.conf
 virtual=/etc/X11/ember-virtual.conf
+pending=/run/ember-display-watch.state
 hdmi=false
 for status in /sys/class/drm/*HDMI*/status; do
     if [[ -f $status && $(<"$status") == connected ]]; then
@@ -9,6 +10,25 @@ for status in /sys/class/drm/*HDMI*/status; do
         break
     fi
 done
+
+# A noisy HDMI connection must stay changed before restarting the desktop.
+if [[ ${1:-} != --no-restart ]]; then
+    desired=virtual
+    $hdmi && desired=hdmi
+    current=hdmi
+    [[ -L $conf && $(readlink "$conf") == "$virtual" ]] && current=virtual
+    if [[ $desired != "$current" ]]; then
+        previous= since=0
+        [[ -f $pending ]] && read -r previous since < "$pending"
+        now=$(date +%s)
+        if [[ $previous != "$desired" ]]; then
+            printf '%s %s\n' "$desired" "$now" > "$pending"
+            exit 0
+        fi
+        (( now - since >= 20 )) || exit 0
+    fi
+    rm -f "$pending"
+fi
 
 changed=false
 if $hdmi; then

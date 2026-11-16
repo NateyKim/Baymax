@@ -4,6 +4,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 
 
@@ -21,6 +22,7 @@ class DisplayTests(unittest.TestCase):
             connector.mkdir()
             status = connector / 'status'
             log = root / 'restarts'
+            pending = root / 'pending'
             systemctl = root / 'systemctl'
             systemctl.write_text('#!/bin/sh\n[ "$1" = is-active ] || echo "$1" >> "$EMBER_RESTART_LOG"\n')
             systemctl.chmod(0o755)
@@ -28,6 +30,7 @@ class DisplayTests(unittest.TestCase):
             script.write_text(source.replace('/etc/X11/xorg.conf.d/20-ember-virtual.conf', str(conf))
                               .replace('/etc/X11/ember-virtual.conf', str(virtual))
                               .replace('/sys/class/drm/*HDMI*/status', str(root / '*HDMI*/status'))
+                              .replace('/run/ember-display-watch.state', str(pending))
                               .replace('systemctl', str(systemctl)))
             env = {**os.environ, 'EMBER_RESTART_LOG': str(log)}
 
@@ -37,10 +40,20 @@ class DisplayTests(unittest.TestCase):
             self.assertFalse(log.exists())
             status.write_text('disconnected\n')
             subprocess.run(['bash', str(script)], check=True, env=env)
+            self.assertFalse(conf.exists())
+            self.assertTrue(pending.exists())
+            status.write_text('connected\n')
+            subprocess.run(['bash', str(script)], check=True, env=env)
+            self.assertFalse(pending.exists())
+            status.write_text('disconnected\n')
+            pending.write_text(f'virtual {int(time.time()) - 30}\n')
             subprocess.run(['bash', str(script)], check=True, env=env)
             self.assertEqual(conf.resolve(), virtual.resolve())
             self.assertEqual(log.read_text().splitlines(), ['restart'])
             status.write_text('connected\n')
+            subprocess.run(['bash', str(script)], check=True, env=env)
+            self.assertTrue(conf.is_symlink())
+            pending.write_text(f'hdmi {int(time.time()) - 30}\n')
             subprocess.run(['bash', str(script)], check=True, env=env)
             self.assertFalse(conf.exists())
             self.assertEqual(log.read_text().splitlines(), ['restart', 'restart'])
