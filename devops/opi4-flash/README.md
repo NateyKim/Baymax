@@ -174,7 +174,8 @@ Windows and Mac still needs a fresh-image hardware test before fleet use.
    The setup hotspot closes while the board tries the network; if joining fails,
    it returns so you can retry. No keyboard, monitor or internet is needed to
    reach this setup page. An open network may still require a captive-portal
-   sign-in for internet access.
+   sign-in for internet access. To connect Ember to an iPhone hotspot, keep the
+   iPhone hotspot on and open the Ember setup page from a second phone or laptop.
 3. From a device on the same reachable network, open
    `http://HOSTNAME.local:8765/`, using the generated hostname in the private access
    file. If mDNS does not resolve, use the board's IP from the router/hotspot list.
