@@ -126,8 +126,6 @@ if not re.search(r'^source(?:-directory)?\s+/etc/network/interfaces.d', interfac
 write('/etc/systemd/journald.conf.d/ember.conf', '[Journal]\nStorage=persistent\nSystemMaxUse=128M\n')
 copy('credentials.json', '/etc/ember/credentials.json', 0o600)
 write('/etc/ember/wifi-setup.json', json.dumps({'password': credentials['setup_wifi_password']}) + '\n', 0o600)
-if settings.get('tailscale_auth_key'):
-    write('/etc/ember/tailscale-auth.key', settings['tailscale_auth_key'] + '\n', 0o600)
 for name in ['ember.bundle', 'bundle-source.json', 'anydesk-arm64.deb', 'ember-status.py', 'ember-device-config.py', 'ember-anydesk-id.py']:
     copy(name, '/opt/ember-provision/' + name)
 python_root = root / 'opt/ember-python'
@@ -144,13 +142,6 @@ for parent, directories, files in os.walk(python_root):
             os.chmod(path, path.stat().st_mode & ~0o022)
 copy('ember-provision', '/usr/local/sbin/ember-provision', 0o755)
 copy('ember-wifi-setup.py', '/usr/local/lib/ember/ember_wifi_setup.py')
-copy('ember-tailscale', '/usr/local/sbin/ember-tailscale', 0o755)
-copy('ember-tailscale.service', '/etc/systemd/system/ember-tailscale.service')
-if settings.get('tailscale_auth_key'):
-    link = root / 'etc/systemd/system/multi-user.target.wants/ember-tailscale.service'
-    image_directory(link.parent)
-    link.unlink(missing_ok=True)
-    link.symlink_to('../ember-tailscale.service')
 copy('ember-hardware.py', '/opt/ember-provision/ember-hardware.py')
 copy('system-packages.txt', '/opt/ember-provision/system-packages.txt')
 for wheel in sorted(payload.glob('*.whl')):

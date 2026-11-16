@@ -44,15 +44,6 @@ assert credentials['setup_wifi_ssid'] == 'Ember-Setup-' + credentials['hostname'
 assert (root / 'usr/local/lib/ember/ember_wifi_setup.py').is_file()
 assert (root / 'etc/systemd/system/multi-user.target.wants/ember-wifi-setup.service').is_symlink()
 assert os.readlink(root / 'etc/systemd/system/hostapd.service') == '/dev/null'
-auth_key = root / 'etc/ember/tailscale-auth.key'
-if settings.get('tailscale_auth_key'):
-    assert auth_key.read_text() == settings['tailscale_auth_key'] + '\n'
-    assert stat.S_IMODE(auth_key.stat().st_mode) == 0o600
-    assert (root / 'etc/systemd/system/multi-user.target.wants/ember-tailscale.service').is_symlink()
-else:
-    assert not auth_key.exists()
-    assert not (root / 'etc/systemd/system/multi-user.target.wants/ember-tailscale.service').exists()
-assert (root / 'usr/local/sbin/ember-tailscale').stat().st_mode & 0o111
 for name in ('linux_password', 'anydesk_password'):
     if name in settings:
         assert credentials[name] == settings[name]

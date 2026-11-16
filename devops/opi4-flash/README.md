@@ -20,7 +20,6 @@ Run the private configurator or copy `settings.example.json` to
   "branch": "deploy",
   "wifi_networks": [],
   "gemini_api_key": "",
-  "tailscale_auth_key": "",
   "timezone": "America/Los_Angeles"
 }
 ```
@@ -42,14 +41,6 @@ Run the private configurator or copy `settings.example.json` to
   Ember starts automatically after installation, sends microphone/camera context
   to Gemini, and may record session audio locally. Keep the key blank if capture
   should wait for manual setup.
-- **Consistent remote SSH:** if this computer is already on your Tailscale network,
-  create a [one-time auth key](https://login.tailscale.com/admin/settings/keys)
-  and enter it in the app's optional Tailscale field. After Ember joins Wi-Fi,
-  it installs Tailscale, registers with its board hostname, and deletes the key
-  from the running card. Use `ssh ember@BOARDNAME` from another device on the
-  same Tailscale network (with MagicDNS enabled). The image and private settings
-  still contain the key until the card boots, so keep them private. If you leave
-  the field blank, no Tailscale enrollment is attempted; LAN SSH still works.
 - **Time zone** (optional): the board's clock. Without it a card is set to
   `America/Los_Angeles`, as every card built before this setting is. Use the home's
   IANA name, such as `America/New_York` or `Europe/London` (the build checks that the
