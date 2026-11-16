@@ -69,6 +69,7 @@ def status():
              'Updated: ' + datetime.now().astimezone().isoformat(timespec='seconds'),
              f'Automatic refresh: every {REFRESH_SECONDS} seconds', '', 'Board: ' + socket.gethostname(),
              'IP addresses: ' + command('hostname', '-I'),
+             'Private-network IP: ' + command('tailscale', 'ip', '-4'),
              'AnyDesk ID: ' + anydesk_id(),
              'AnyDesk service: ' + command('systemctl', 'is-active', 'anydesk'),
              'Desktop service (session not verified): ' + command('systemctl', 'is-active', 'lightdm'), '']

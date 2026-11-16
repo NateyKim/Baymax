@@ -2,5 +2,6 @@
   "branch": "deploy",
   "wifi_networks": [],
   "gemini_api_key": "",
+  "tailscale_auth_key": "",
   "timezone": "America/Los_Angeles"
 }

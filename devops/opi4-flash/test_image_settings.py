@@ -144,6 +144,14 @@ class ImageSettingsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate(self.settings | {'anydesk_password': 'short'})
 
+    def test_optional_tailscale_key(self):
+        self.assertEqual(validate(self.settings | {'tailscale_auth_key': ''})['tailscale_auth_key'], '')
+        self.assertEqual(validate(self.settings | {'tailscale_auth_key': 'tskey-auth-test123'})['tailscale_auth_key'],
+                         'tskey-auth-test123')
+        for key in ('bad-key', 'tskey-auth-hello world', 123):
+            with self.assertRaises(ValueError):
+                validate(self.settings | {'tailscale_auth_key': key})
+
     def test_shell_metacharacters_are_quoted_and_missing_fields_rejected(self):
         text = dietpi_wifi("aWIFI_SSID[0]=''\naWIFI_KEY[0]=''\n", {'ssid': "O'Brien $(echo test)", 'password': 'pass$word'})
         self.assertIn("'\"'\"'", text)

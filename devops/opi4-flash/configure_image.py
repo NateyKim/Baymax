@@ -46,13 +46,16 @@ def main():
         password = '' if password == '-' else password or (primary_wifi['password'] if ssid == primary_wifi['ssid'] else '')
     key = getpass.getpass('Gemini key (Enter keeps existing; - leaves manual Setup): ')
     key = '' if key == '-' else key or old['gemini_api_key']
+    remote_key = getpass.getpass('Tailscale one-time auth key (Enter keeps existing; - disables): ')
+    remote_key = '' if remote_key == '-' else remote_key or old.get('tailscale_auth_key', '')
     zone = input(f'Time zone, e.g. America/New_York [{timezone(old)}]: ').strip() or timezone(old)
     while not valid_timezone(zone):
         zone = input(f'Not a time zone name. Time zone [{DEFAULT_TIMEZONE}]: ').strip() or DEFAULT_TIMEZONE
     kept = {name: old[name] for name in ('access_password', 'linux_password', 'anydesk_password') if name in old}
     networks = ([{'ssid': ssid, 'password': password}] + previous[1:]) if ssid else []
     save_private(args.settings, {'branch': branch, 'wifi_networks': networks,
-                                 'gemini_api_key': key, 'timezone': zone} | kept)
+                                 'gemini_api_key': key, 'tailscale_auth_key': remote_key,
+                                 'timezone': zone} | kept)
     print(f'Saved branch {branch!r}, Wi-Fi {ssid or "phone setup"!r}, Gemini key {"configured" if key else "blank"} '
           f'and time zone {zone}. Rebuild the image to apply.')
 
