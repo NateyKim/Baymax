@@ -50,6 +50,9 @@ Run the private configurator or copy `settings.example.json` to
   same Tailscale network (with MagicDNS enabled). The image and private settings
   still contain the key until the card boots, so keep them private. If you leave
   the field blank, no Tailscale enrollment is attempted; LAN SSH still works.
+  For long-lived boards, review device key expiry in the Tailscale admin console.
+  After reflashing a board, remove its old Tailscale device entry if the new one
+  receives a numbered name.
 - **Time zone** (optional): the board's clock. Without it a card is set to
   `America/Los_Angeles`, as every card built before this setting is. Use the home's
   IANA name, such as `America/New_York` or `Europe/London` (the build checks that the
